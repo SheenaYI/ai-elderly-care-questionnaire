@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-15T00:00:00+08:00",
+  "title": "Design System: AI养老监测 DCE 交互式原型",
+  "extensions": {
+    "colorMeta": {
+      "primary": { "role": "primary", "displayName": "常青主色", "canonical": "#214c43", "tonalRamp": ["#173b34", "#214c43", "#285b4e", "#3f7465", "#76a394", "#b1cdc1", "#d8e9e2", "#edf5f1"] },
+      "sage-surface": { "role": "neutral", "displayName": "雾绿阅读面", "canonical": "#f5f7f3", "tonalRamp": ["#26362f", "#40554a", "#557064", "#728579", "#aab8ae", "#d6ddd3", "#e7ece5", "#f5f7f3"] },
+      "warm-page": { "role": "neutral", "displayName": "暖白页面", "canonical": "#f6f5f0", "tonalRamp": ["#373832", "#62635b", "#898a80", "#aeafa6", "#cccdc5", "#e2e1da", "#efeee9", "#f6f5f0"] },
+      "difference-surface": { "role": "tertiary", "displayName": "研究差异琥珀", "canonical": "#fff9ed", "tonalRamp": ["#4a2d08", "#71450b", "#8a550b", "#b37717", "#d9a746", "#f6d88f", "#fdf0cc", "#fff9ed"] }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "任务标题", "purpose": "页面标题和方案名称；以字号和600字重建立层级。" },
+      "body": { "displayName": "可读正文", "purpose": "研究说明、属性解释和通知内容；中文保持宽松行高。" },
+      "label": { "displayName": "状态标签", "purpose": "进度、状态、属性类别和辅助说明。" }
+    },
+    "shadows": [
+      { "name": "card", "value": "0 14px 32px -24px rgba(23, 59, 52, 0.38)", "purpose": "说明、方案和确认卡片的环境层级。" },
+      { "name": "selected", "value": "0 18px 38px -25px rgba(33, 76, 67, 0.58)", "purpose": "已选或悬停方案的确认反馈。" },
+      { "name": "modal", "value": "0 28px 80px -28px rgba(11, 30, 25, 0.56)", "purpose": "焦点约束对话框。" }
+    ],
+    "motion": [
+      { "name": "state-transition", "value": "200–260ms cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "卡片选择、对话框和通知进入的状态反馈。" },
+      { "name": "monitoring-signal", "value": "2.2s ease-in-out", "purpose": "正常监测状态的低强度呼吸提示。" }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "确认选择和查看通知详情等高确定性操作。",
+      "html": "<button class=\"ds-btn-primary\">确认选择</button>",
+      "css": ".ds-btn-primary { min-height: 48px; padding: 12px 20px; border: 0; border-radius: 12px; background: #214c43; color: #fff; font: 600 16px/1.2 system-ui, sans-serif; cursor: pointer; transition: background 200ms ease; } .ds-btn-primary:hover { background: #285b4e; } .ds-btn-primary:focus-visible { outline: 3px solid rgba(138,85,11,.62); outline-offset: 3px; } .ds-btn-primary:disabled { background: #d6ddd3; color: #557064; cursor: not-allowed; }"
+    },
+    {
+      "name": "Secondary Action",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "用于查看模拟、返回和重新选择的低风险操作。",
+      "html": "<button class=\"ds-btn-secondary\">查看模拟情景</button>",
+      "css": ".ds-btn-secondary { min-height: 48px; padding: 12px 16px; border: 1px solid #214c43; border-radius: 12px; background: #fff; color: #214c43; font: 600 16px/1.2 system-ui, sans-serif; cursor: pointer; transition: background 200ms ease; } .ds-btn-secondary:hover { background: #edf5f1; } .ds-btn-secondary:focus-visible { outline: 3px solid rgba(138,85,11,.62); outline-offset: 3px; }"
+    },
+    {
+      "name": "Scheme Choice Card",
+      "kind": "card",
+      "refersTo": "option-card-selected",
+      "description": "并列呈现的 DCE 方案；仅选择状态改变边界和阴影，内容权重始终相等。",
+      "html": "<article class=\"ds-scheme-card\"><span>系统配置</span><h3>方案A</h3><p>属性内容由配置数据提供</p></article>",
+      "css": ".ds-scheme-card { padding: 20px; border: 1px solid #d6ddd3; border-radius: 16px; background: #fff; color: #214c43; font: 16px/1.75 system-ui, sans-serif; box-shadow: 0 14px 32px -24px rgba(23,59,52,.38); } .ds-scheme-card:hover { border-color: #557064; box-shadow: 0 18px 38px -25px rgba(33,76,67,.58); } .ds-scheme-card:focus-visible { outline: 3px solid rgba(138,85,11,.62); outline-offset: 3px; }"
+    },
+    {
+      "name": "Difference Attribute Row",
+      "kind": "card",
+      "refersTo": "difference-row",
+      "description": "仅标示 A/B 实验配置真正不同的属性。",
+      "html": "<section class=\"ds-difference-row\"><span class=\"ds-badge\">不同</span><strong>能看到什么</strong><p>详细原始数据</p></section>",
+      "css": ".ds-difference-row { position: relative; padding: 16px; border-radius: 12px; background: #fff9ed; color: #71450b; font: 14px/1.6 system-ui, sans-serif; } .ds-difference-row p { margin: 8px 0 0; color: #23312b; font-weight: 600; } .ds-badge { float: right; padding: 2px 8px; border-radius: 999px; background: #fdf0cc; color: #71450b; font-size: 12px; font-weight: 600; }"
+    },
+    {
+      "name": "Status Chip",
+      "kind": "chip",
+      "refersTo": "button-secondary",
+      "description": "短状态、进度或预设模拟标签；不替代完整状态文字。",
+      "html": "<span class=\"ds-status-chip\">预设模拟</span>",
+      "css": ".ds-status-chip { display: inline-flex; align-items: center; min-height: 28px; padding: 0 12px; border: 1px solid rgba(255,255,255,.15); border-radius: 999px; background: rgba(255,255,255,.08); color: #edf5f1; font: 500 12px/1 system-ui, sans-serif; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "居家照护研究工作簿",
+    "overview": "浅色问卷优先呈现可比较、可阅读、可确认的信息；深色监测画面只用于解释预设模拟事件。低饱和深绿、灰绿和暖白建立稳定感，浅琥珀只标记实验差异。",
+    "keyCharacteristics": ["A/B 信息等权", "差异色只服务实验变量", "模拟画面从属于问卷任务", "状态和动画可感知且克制"],
+    "rules": [
+      { "name": "Difference-Only Rule", "body": "琥珀色只对应真实属性差异或研究提示；相同监测方式保持中性。", "section": "colors" },
+      { "name": "Read-First Rule", "body": "研究正文、属性解释和通知保持可读字号与宽松行高。", "section": "typography" }
+    ],
+    "dos": ["Do 让 A/B 卡片信息权重和行动入口保持对等。", "Do 在移动端转为单列并保持中文全文可读。", "Do 明确标记所有事件为预设模拟。"],
+    "donts": ["Don't 增加未给出的实验属性差异。", "Don't 把模拟画面扩展为科幻控制台。", "Don't 用颜色或强闪烁单独表达状态。"]
+  }
+}

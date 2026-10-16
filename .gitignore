@@ -1,0 +1,39 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+dist-ssr/
+build/
+*.local
+
+# env — never commit real credentials
+.env
+.env.*
+!.env.example
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# test / coverage
+coverage/
+.nyc_output/
+
+# local research data exports — must never be committed
+exports/
+*.csv
+!docs/**/*.csv
+data-export/
+participants*.json
