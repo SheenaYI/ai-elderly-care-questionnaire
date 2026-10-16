@@ -127,21 +127,21 @@ export default {
           from: { transform: 'translateY(14px)', opacity: '0' },
           to: { transform: 'translateY(0)', opacity: '1' },
         },
+        // ⚠️ 用独立属性 rotate / scale / translate，**不要用 transform**。
+        // 原因：动画里的 transform 会覆盖元素自身的 transform（含
+        // Tailwind 的 -translate-x-1/2 居中类），导致居中位移失效、
+        // 元素整体偏移自身一半尺寸。2026-10 首页圆环偏移即由此引起。
         ringSpin: {
-          from: { transform: 'rotate(0deg)' },
-          to: { transform: 'rotate(360deg)' },
+          from: { rotate: '0deg' },
+          to: { rotate: '360deg' },
         },
         particle: {
-          '0%, 100%': { opacity: '0.18', transform: 'scale(0.7)' },
-          '50%': { opacity: '0.85', transform: 'scale(1)' },
-        },
-        floatSoft: {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-4px)' },
+          '0%, 100%': { opacity: '0.18', scale: '0.7' },
+          '50%': { opacity: '0.85', scale: '1' },
         },
         slideInLeft: {
-          from: { transform: 'translateX(-100%)', opacity: '0.4' },
-          to: { transform: 'translateX(0)', opacity: '1' },
+          from: { translate: '-100% 0', opacity: '0.4' },
+          to: { translate: '0 0', opacity: '1' },
         },
         fadeIn: {
           from: { opacity: '0' },
@@ -162,8 +162,6 @@ export default {
         alert: 'alertRing 1.6s ease-in-out infinite',
         'slide-up': 'slideUp 260ms cubic-bezier(0.16, 1, 0.3, 1) both',
         'slide-in-left': 'slideInLeft 240ms cubic-bezier(0.16, 1, 0.3, 1) both',
-        // 节点轻微浮动；配合错开的 delay，避免整片同频跳动
-        'float-soft': 'floatSoft 6s ease-in-out infinite',
         // 首页轨道环：转速与方向各不相同，形成缓慢的"粒子环绕"感
         'ring-spin-slow': 'ringSpin 96s linear infinite',
         'ring-spin-slower': 'ringSpin 150s linear infinite reverse',

@@ -16,9 +16,14 @@ import { HeartHandshake, House, ListFilter, Lock, ShieldCheck } from 'lucide-rea
  *   - **装饰层（环 / 粒子）必须铺满同一个正方形，不得内缩**：圆环按自身宽度
  *     百分比缩放，若把它放进一个 `inset-[x%]` 的内缩框，环的尺寸与半径基准就
  *     与圆盘、节点不同，会出现"圆环整体偏移 / 缩在节点里面"的错位。
- *     2026-10 曾因此出现过一次圆心偏移，已修正并由
- *     tests/heroOrbitGeometry.test.ts 锁定（断言装饰层铺满、且各环半径与
- *     节点半径同基准）。
+ *   - **圆环不自带 `transform` 动画**：动画中的 `transform` 会覆盖元素自身的
+ *     `transform`（含 Tailwind 的 `-translate-x-1/2` 居中类），导致居中位移失效、
+ *     元素偏移自身一半尺寸。因此：
+ *       1) 涉及居中元素的动画，关键帧一律使用独立属性 `rotate` / `scale` / `translate`。
+ *          节点用 `translate` 属性做浮动，因此其 `-translate-x-1/2` 位移类仍然生效；
+ *       2) 本组件的居中统一用 `inset` / `left`+`top` 百分比实现，不依赖位移类。
+ *     2026-10 首页圆环"整体偏右下"就是这两点被破坏导致的，现已由
+ *     tests/heroOrbitGeometry.test.ts 锁定。
  *   - 节点坐标由三角函数算出并写成静态 class（不拼字符串），
  *     因此 Tailwind 能正常提取，也不依赖运行时计算。
  *
@@ -62,8 +67,13 @@ const ORBIT_RINGS = [
  * 三个研究维度节点。
  *
  * 角度：安全感 90°（正上）、隐私担忧 210°（左下）、自主感 330°（右下）。
- * 半径 38% 由三角函数换算为相对定位百分比后写死，保证圆心一致：
+ * 半径 38%，由三角函数换算为 **left / top 百分比**后写死：
  *   left = 50 + cos(θ)·38 , top = 50 − sin(θ)·38
+ *
+ * ⚠️ 节点**不带任何动画**。原因：动画里的 `transform` 会覆盖位移类，
+ *    而 `translate` 属性又会与 `-translate-y-1/2`（同为 translate 简写）争用同一属性。
+ *    两种写法都会破坏居中，因此这里刻意保持静止——动态感由粒子的明灭提供。
+ *    若将来确需给节点加动画，请放在**内层元素**上，不要放在这个定位元素上。
  */
 const DIMENSIONS = [
   {
@@ -71,21 +81,18 @@ const DIMENSIONS = [
     label: '安全感',
     Icon: ShieldCheck,
     className: 'left-1/2 top-[12%] -translate-x-1/2 -translate-y-1/2',
-    delay: '0s',
   },
   {
     key: 'privacy',
     label: '隐私担忧',
     Icon: Lock,
     className: 'left-[17.1%] top-[69%] -translate-x-1/2 -translate-y-1/2',
-    delay: '1.2s',
   },
   {
     key: 'autonomy',
     label: '自主感',
     Icon: ListFilter,
     className: 'left-[82.9%] top-[69%] -translate-x-1/2 -translate-y-1/2',
-    delay: '2.4s',
   },
 ] as const
 
@@ -104,13 +111,26 @@ export default function HeroOrbit() {
           {/* 装饰层：旋转轨道环与粒子（仅视觉） */}
           <div className="absolute inset-0" aria-hidden="true">
             {ORBIT_RINGS.map((ring) => (
+              /*
+               * 用 inset 精确居中（左=上=(100−尺寸)/2），
+               * **不使用 -translate-x-1/2 居中**：虽然关键帧已改用 rotate 属性
+               * 不再覆盖 transform，但用 inset 从结构上就不依赖位移，
+               * 更不容易被后续改动破坏。
+               */
               <div
                 key={ring.size}
-                className={`absolute left-1/2 top-1/2 aspect-square -translate-x-1/2 -translate-y-1/2 ${ring.spin}`}
-                style={{ width: ring.size }}
+                className="absolute aspect-square"
+                style={{
+                  width: ring.size,
+                  left: `${(100 - parseFloat(ring.size)) / 2}%`,
+                  top: `${(100 - parseFloat(ring.size)) / 2}%`,
+                }}
               >
-                <span className="absolute inset-0 rounded-full border border-dashed border-sage-300/75" />
-                {/* 环上的小点：随环旋转，形成持续的环绕动势 */}
+                {/* 旋转层：环的虚线随其旋转，形成环绕动势 */}
+                <span
+                  className={`absolute inset-0 rounded-full border border-dashed border-sage-300/75 ${ring.spin}`}
+                />
+                {/* 环上的小点：不旋转，始终位于环的正上方，避免与位移类互相干扰 */}
                 <span className="absolute left-1/2 top-0 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-forest-500/50" />
               </div>
             ))}
@@ -137,7 +157,15 @@ export default function HeroOrbit() {
           </div>
 
           {/* 中心：居家养老（与轨道区同心） */}
-          <div className="absolute left-1/2 top-1/2 flex aspect-square w-[42%] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border border-sage-200 bg-white/90 px-2 text-center shadow-card backdrop-blur-sm">
+          {/*
+            中心圆盘：几何量集中在 style 里（宽度 + 居中），
+            与轨道环、节点的定位方式保持一致，便于校验与维护。
+            left = top = (100 − 宽度) / 2 = 29%
+          */}
+          <div
+            className="absolute flex aspect-square flex-col items-center justify-center rounded-full border border-sage-200 bg-white/90 px-2 text-center shadow-card backdrop-blur-sm"
+            style={{ width: '42%', left: '29%', top: '29%' }}
+          >
             <House className="h-6 w-6 text-forest-700 sm:h-7 sm:w-7" aria-hidden="true" />
             <p className="mt-1 text-[0.95rem] font-semibold leading-tight text-forest-800 sm:text-[1.1rem]">
               居家养老
@@ -148,11 +176,10 @@ export default function HeroOrbit() {
           </div>
 
           {/* 三个研究维度：等距环绕，权重对等 */}
-          {DIMENSIONS.map(({ key, label, Icon, className, delay }) => (
+          {DIMENSIONS.map(({ key, label, Icon, className }) => (
             <div
               key={key}
-              className={`absolute flex animate-float-soft items-center gap-1.5 rounded-panel border border-sage-200 bg-white/95 px-2 py-1.5 shadow-card backdrop-blur-sm sm:gap-2 sm:px-3 sm:py-2 ${className}`}
-              style={{ animationDelay: delay }}
+              className={`absolute flex items-center gap-1.5 rounded-panel border border-sage-200 bg-white/95 px-2 py-1.5 shadow-card backdrop-blur-sm sm:gap-2 sm:px-3 sm:py-2 ${className}`}
             >
               <Icon
                 className="h-3.5 w-3.5 shrink-0 text-forest-700 sm:h-4 sm:w-4"
