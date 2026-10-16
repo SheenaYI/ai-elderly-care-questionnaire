@@ -37,3 +37,6 @@ exports/
 !docs/**/*.csv
 data-export/
 participants*.json
+
+# npm cache created locally to work around a global cache permission issue
+.npm-cache/

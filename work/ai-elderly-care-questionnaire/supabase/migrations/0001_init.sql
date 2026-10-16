@@ -1,0 +1,718 @@
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 0001_init.sql — 初始迁移（initial migration）
+-- 智能养老AI监测系统配置偏好与采纳意愿调查 · 研究数据库结构
+-- ═══════════════════════════════════════════════════════════════════════════
+--
+-- 本文件是**初始迁移**（第 1 步，共 3 步），只包含"结构"：
+--   表（tables） → 约束（constraints） → 索引（indexes）
+--   → 长表视图 analysis_long → 写入函数 submit_survey → 种子数据（seeds）
+--
+-- 执行顺序（必须按此顺序，缺一不可）：
+--   0001_init.sql        结构（本文件）
+--   0002_rls_policies.sql 行级安全（RLS）与管理员判定函数
+--   0003_grants.sql       权限授予/回收（GRANT / REVOKE）
+--
+-- 安全模型（与 0002 / 0003 配合，务必阅读 supabase/README.md）：
+--   * anon（匿名前端）对所有表**无任何权限**；问卷数据只能由服务端
+--     （service_role）通过 submit_survey() 写入。前端永不直连本库。
+--   * authenticated（邮箱密码登录的研究人员）只有**只读**权限，
+--     且必须出现在 research_admins 白名单中。
+--   * service_role 只出现在服务端环境变量中，绝不进入前端代码。
+--
+-- 说明：全部语句都是幂等的（IF NOT EXISTS / CREATE OR REPLACE / DROP VIEW IF EXISTS），
+--       便于研究者在 Supabase SQL Editor 中重跑修正。但 IF NOT EXISTS **不会**
+--       修改已存在表的列定义；后续任何列变更必须新建迁移文件（0004_...）。
+--
+-- ⚠️ 本文不含任何真实密钥，只含结构；请勿在此写入参与者数据。
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- gen_random_uuid()：PostgreSQL 13+ 内置；低版本由 pgcrypto 提供。
+create extension if not exists pgcrypto;
+
+
+-- ───────────────────────────────────────────────────────────────────────────
+-- 0. 研究管理员白名单
+-- ───────────────────────────────────────────────────────────────────────────
+
+create table if not exists public.research_admins (
+  email      text primary key,
+  created_at timestamptz not null default now(),
+  note       text not null default ''
+);
+
+comment on table public.research_admins is
+  '研究管理员邮箱白名单。只有此表内的邮箱（Supabase Auth 登录后 JWT 中的 email）才能读取研究数据。初始数据必须由项目负责人手工插入。';
+comment on column public.research_admins.email is
+  '管理员登录邮箱。大小写不敏感（比较时统一 lower()），建议统一填小写。';
+comment on column public.research_admins.note is
+  '备注（姓名/角色/加入原因），便于日后审计谁有数据访问权。';
+
+-- 大小写不敏感的唯一性：防止 Foo@x.com 与 foo@x.com 同时存在绕过审计。
+create unique index if not exists research_admins_email_lower_key
+  on public.research_admins (lower(email));
+
+
+-- ───────────────────────────────────────────────────────────────────────────
+-- 1. 问卷版本登记表
+-- ───────────────────────────────────────────────────────────────────────────
+
+create table if not exists public.questionnaire_versions (
+  id          text primary key,             -- 例如 'V1.0'
+  description text not null default '',
+  is_active   boolean not null default true,
+  created_at  timestamptz not null default now()
+);
+
+comment on table public.questionnaire_versions is
+  '问卷版本登记表。服务端提交接口会校验：提交的版本号必须存在于本表且 is_active = true，否则拒绝写入。';
+comment on column public.questionnaire_versions.is_active is
+  '是否接受新数据。停用旧版本（false）后，旧版本问卷的提交会被服务端拒绝，但历史数据保留。';
+
+
+-- ───────────────────────────────────────────────────────────────────────────
+-- 2. 研究运行配置（自由键值对）
+-- ───────────────────────────────────────────────────────────────────────────
+
+create table if not exists public.research_config (
+  key        text primary key,
+  value      text not null,
+  updated_at timestamptz not null default now()
+);
+
+comment on table public.research_config is
+  '研究运行配置（自由键值对，仅 service_role 与白名单管理员可写）。例如记录正式发放阶段、数据保存期限说明等，不存放任何密钥。';
+
+
+-- ───────────────────────────────────────────────────────────────────────────
+-- 3. 参与者主表
+-- ───────────────────────────────────────────────────────────────────────────
+
+create table if not exists public.participants (
+  id                     uuid primary key default gen_random_uuid(),
+  participant_id         text not null unique,
+  questionnaire_version  text not null
+                           references public.questionnaire_versions (id)
+                           on update cascade on delete restrict,
+  consent_status         text not null check (consent_status in ('pending', 'agreed', 'declined')),
+  age_group              text not null check (age_group in ('18-29', '30-44', '45-59', '60-69', '70+')),
+  respondent_role        text not null check (respondent_role in
+                           ('older_adult', 'current_caregiver', 'prospective_caregiver', 'other')),
+  respondent_role_other  text not null default '',
+  ai_device_experience   text not null check (ai_device_experience in ('used', 'aware_not_used', 'unaware')),
+  caregiving_experience  text not null check (caregiving_experience in ('often', 'sometimes', 'never')),
+  assigned_block         text not null check (assigned_block in ('A', 'B')),
+  prior_experience       boolean not null default false,
+  started_at             timestamptz not null,
+  submitted_at           timestamptz,
+  total_duration_ms      integer,
+  submission_status      text not null default 'draft' check (submission_status in ('draft', 'submitted', 'failed')),
+  created_at             timestamptz not null default now()
+);
+
+comment on table public.participants is
+  '参与者主表：一人一行。participant_id 为前端本地生成的匿名编号，不含任何个人身份信息。';
+comment on column public.participants.participant_id is
+  '匿名参与者编号（前端生成，8–128 字符）。研究数据的唯一连接键，不含姓名/身份证号。';
+comment on column public.participants.questionnaire_version is
+  '问卷版本（外键）。用于把 Pilot 数据与正式版数据分开分析，禁止混用。';
+comment on column public.participants.assigned_block is
+  '随机分配的 DCE 卷别：A 卷 = T01/T02/T03/T07/T08/T11，B 卷 = T04/T05/T06/T09/T10/T12。';
+comment on column public.participants.prior_experience is
+  '是否在本问卷之前使用过独立"情景体验"页面（用于检验体验先后顺序的影响）。';
+comment on column public.participants.submission_status is
+  'draft = 服务端已见过但未完成；submitted = 已成功落库；failed = 写入异常。只有 submitted 的数据应进入正式分析。';
+
+
+-- ───────────────────────────────────────────────────────────────────────────
+-- 4. DCE 选择记录（每题一行，左右方案各存一份属性快照）
+-- ───────────────────────────────────────────────────────────────────────────
+
+create table if not exists public.dce_choices (
+  id                   bigserial primary key,
+  participant_id       text not null references public.participants (participant_id) on delete cascade,
+  task_id              text not null check (task_id ~ '^T(0[1-9]|1[0-2])$'),
+  block_id             text not null check (block_id in ('A', 'B')),
+  task_display_order   smallint not null check (task_display_order between 1 and 6),
+  left_profile_id      text not null check (left_profile_id ~ '^C[1-8]$'),
+  right_profile_id     text not null check (right_profile_id ~ '^C[1-8]$'),
+  selected_side        text not null check (selected_side in ('left', 'right')),
+  selected_profile_id  text not null check (selected_profile_id ~ '^C[1-8]$'),
+  left_x1              smallint not null check (left_x1 in (0, 1)),
+  left_x2              smallint not null check (left_x2 in (0, 1)),
+  left_x3              smallint not null check (left_x3 in (0, 1)),
+  right_x1             smallint not null check (right_x1 in (0, 1)),
+  right_x2             smallint not null check (right_x2 in (0, 1)),
+  right_x3             smallint not null check (right_x3 in (0, 1)),
+  response_duration_ms integer not null check (response_duration_ms >= 0),
+  created_at           timestamptz not null default now(),
+
+  constraint dce_choices_participant_task_key unique (participant_id, task_id),
+  -- 左右不能是同一配置（两方案必须可比较）
+  constraint dce_choices_distinct_alternatives check (left_profile_id <> right_profile_id),
+  -- 关键：记录的"选中的配置"必须与"所选一侧"指向的配置一致，
+  -- 否则无法还原参与者真正选择了 C1–C8 中的哪一个（条件 logit 的因变量）。
+  constraint dce_choices_selected_matches_side check (
+    (selected_side = 'left'  and selected_profile_id = left_profile_id) or
+    (selected_side = 'right' and selected_profile_id = right_profile_id)
+  )
+);
+
+comment on table public.dce_choices is
+  'DCE 离散选择实验作答：每位参与者在所分配卷别内恰好 6 题。左右两侧属性水平均为快照，便于在配置编码被修订后仍可复现当时的实验材料。';
+comment on column public.dce_choices.task_display_order is
+  '该题在本卷中的展示次序（1–6）。用于控制题目顺序效应。';
+comment on column public.dce_choices.left_profile_id is
+  '画面左侧方案对应的配置编码 C1–C8（左右位置是随机化的，可能与 V1.0 任务表的方案A/方案B 顺序不同）。';
+comment on column public.dce_choices.selected_profile_id is
+  '参与者实际选中的配置编码 C1–C8。条件 logit 的因变量由它推导（见 analysis_long 视图）。';
+comment on column public.dce_choices.response_duration_ms is
+  '该题作答时长（毫秒），用于剔除不认真作答的样本。';
+
+
+-- ───────────────────────────────────────────────────────────────────────────
+-- 5. 配置感知评价（每人 4 个配置 × 12 个量表题）
+-- ───────────────────────────────────────────────────────────────────────────
+
+create table if not exists public.profile_ratings (
+  id           bigserial primary key,
+  participant_id text not null references public.participants (participant_id) on delete cascade,
+  profile_id   text not null check (profile_id ~ '^C[1-8]$'),
+  x1           smallint not null check (x1 in (0, 1)),
+  x2           smallint not null check (x2 in (0, 1)),
+  x3           smallint not null check (x3 in (0, 1)),
+  rating_order smallint not null check (rating_order between 1 and 4),
+  s1           smallint not null check (s1 between 1 and 5),
+  s2           smallint not null check (s2 between 1 and 5),
+  s3           smallint not null check (s3 between 1 and 5),
+  p1           smallint not null check (p1 between 1 and 5),
+  p2           smallint not null check (p2 between 1 and 5),
+  p3           smallint not null check (p3 between 1 and 5),
+  a1           smallint not null check (a1 between 1 and 5),
+  a2           smallint not null check (a2 between 1 and 5),
+  a3           smallint not null check (a3 between 1 and 5),
+  i1           smallint not null check (i1 between 1 and 5),
+  i2           smallint not null check (i2 between 1 and 5),
+  i3           smallint not null check (i3 between 1 and 5),
+  created_at   timestamptz not null default now(),
+
+  constraint profile_ratings_participant_profile_key unique (participant_id, profile_id),
+  constraint profile_ratings_participant_order_key  unique (participant_id, rating_order)
+);
+
+comment on table public.profile_ratings is
+  '模块四：每个被抽中的配置的 12 题量表评分（S1–S3 安全感 / P1–P3 隐私担忧 / A1–A3 自主感 / I1–I3 采纳意愿），取值 1–5。';
+comment on column public.profile_ratings.rating_order is
+  '该配置在本问卷中的评价次序（1–4），用于控制评价顺序效应。';
+comment on column public.profile_ratings.p1 is
+  '⚠️ 计分方向：P1–P3 分数越高表示**隐私担忧越强**，分析时不得反向计分为"隐私满意度"。';
+
+
+-- ───────────────────────────────────────────────────────────────────────────
+-- 6. 理解检查（Q6 / Q7）
+-- ───────────────────────────────────────────────────────────────────────────
+
+create table if not exists public.comprehension_checks (
+  id                 bigserial primary key,
+  participant_id     text not null references public.participants (participant_id) on delete cascade,
+  question_id        text not null check (question_id in ('Q6', 'Q7')),
+  first_answer       text not null,
+  first_answer_index smallint not null check (first_answer_index >= 0),
+  is_correct         boolean not null,
+  retry_count        smallint not null default 0 check (retry_count >= 0),
+  created_at         timestamptz not null default now(),
+
+  constraint comprehension_checks_participant_question_key unique (participant_id, question_id)
+);
+
+comment on table public.comprehension_checks is
+  '模块二理解检查 Q6/Q7 的**首次**作答记录（答错后重答不覆盖首次结果），用于检查情景理解是否达标。';
+comment on column public.comprehension_checks.first_answer is
+  '首次作答所选选项的文字标签。由服务端根据 first_answer_index 还原得到，便于直接阅读 CSV。';
+comment on column public.comprehension_checks.retry_count is
+  '首次答错后重新作答的次数。';
+comment on column public.comprehension_checks.is_correct is
+  '首次作答是否正确。服务端会重新推导该值，不信任客户端上报。';
+
+
+-- ───────────────────────────────────────────────────────────────────────────
+-- 7. 模拟使用埋点
+-- ───────────────────────────────────────────────────────────────────────────
+
+create table if not exists public.simulation_events (
+  id                 bigserial primary key,
+  participant_id     text not null references public.participants (participant_id) on delete cascade,
+  task_id            text,
+  profile_id         text not null check (profile_id ~ '^C[1-8]$'),
+  event_type         text not null check (event_type in ('open', 'close', 'complete', 'view_details', 'replay')),
+  source             text not null check (source in ('dce', 'experience')),
+  event_timestamp_ms integer not null check (event_timestamp_ms >= 0),
+  duration_ms        integer check (duration_ms is null or duration_ms >= 0),
+  created_at         timestamptz not null default now(),
+
+  constraint simulation_events_task_id_format check (
+    task_id is null or task_id ~ '^T(0[1-9]|1[0-2])$'
+  )
+);
+
+comment on table public.simulation_events is
+  '模拟使用行为埋点（打开/关闭/看完/看详情/重播）。用于分析"是否看过某个配置"以及停留时长。';
+comment on column public.simulation_events.task_id is
+  '若在 DCE 题目中打开模拟则记录题目编号；独立"情景体验"页为空（NULL）。';
+comment on column public.simulation_events.event_timestamp_ms is
+  '相对问卷开始时间的毫秒偏移（不是绝对时间），保留原始事件顺序。';
+comment on column public.simulation_events.duration_ms is
+  '停留时长（毫秒），主要由 close 事件携带。';
+
+
+-- ───────────────────────────────────────────────────────────────────────────
+-- 8. 总体评价（Q8–Q10，一人一行）
+-- ───────────────────────────────────────────────────────────────────────────
+
+create table if not exists public.survey_responses (
+  id             bigserial primary key,
+  participant_id text not null unique references public.participants (participant_id) on delete cascade,
+  q8             smallint not null check (q8 between 1 and 5),
+  q9             text not null check (q9 in
+                   ('insufficient_detection', 'privacy_exposure', 'limited_autonomy', 'complex_operation', 'other')),
+  q10            text not null default '',
+  created_at     timestamptz not null default now()
+);
+
+comment on table public.survey_responses is
+  '模块五总体评价：Q8 总体采纳意愿（1–5）、Q9 最担心的问题、Q10 开放性建议（可空字符串）。';
+comment on column public.survey_responses.q8 is
+  '总体采纳意愿，1 = 非常不同意 … 5 = 非常同意。';
+
+
+-- ───────────────────────────────────────────────────────────────────────────
+-- 9. 问卷会话（可多次：草稿/失败重试留痕，仅正式提交进入分析）
+-- ───────────────────────────────────────────────────────────────────────────
+
+create table if not exists public.survey_sessions (
+  id                    bigserial primary key,
+  participant_id        text not null references public.participants (participant_id) on delete cascade,
+  questionnaire_version text not null
+                          references public.questionnaire_versions (id)
+                          on update cascade on delete restrict,
+  prior_experience      boolean not null default false,
+  user_agent            text,
+  started_at            timestamptz not null,
+  submitted_at          timestamptz,
+  created_at            timestamptz not null default now()
+);
+
+comment on table public.survey_sessions is
+  '问卷会话记录（追加式）：同一 participant_id 若发生重试会留下多行，便于审计数据收集过程。';
+comment on column public.survey_sessions.user_agent is
+  '提交时的 User-Agent（仅用于设备/浏览器兼容性排查，含少量技术信息，不得用于识别个人）。';
+
+
+-- ───────────────────────────────────────────────────────────────────────────
+-- 10. 索引：覆盖全部外键 + 常用筛选列
+-- ───────────────────────────────────────────────────────────────────────────
+
+create index if not exists participants_assigned_block_idx
+  on public.participants (assigned_block);
+create index if not exists participants_submission_status_idx
+  on public.participants (submission_status);
+create index if not exists participants_questionnaire_version_idx
+  on public.participants (questionnaire_version);
+
+create index if not exists dce_choices_participant_id_idx on public.dce_choices (participant_id);
+create index if not exists dce_choices_block_id_idx      on public.dce_choices (block_id);
+create index if not exists dce_choices_task_id_idx       on public.dce_choices (task_id);
+
+create index if not exists profile_ratings_participant_id_idx on public.profile_ratings (participant_id);
+create index if not exists profile_ratings_profile_id_idx     on public.profile_ratings (profile_id);
+
+create index if not exists comprehension_checks_participant_id_idx
+  on public.comprehension_checks (participant_id);
+
+create index if not exists simulation_events_participant_id_idx
+  on public.simulation_events (participant_id);
+create index if not exists simulation_events_profile_id_idx
+  on public.simulation_events (profile_id);
+create index if not exists simulation_events_event_type_idx
+  on public.simulation_events (event_type);
+
+-- survey_responses.participant_id 已有 UNIQUE 约束（自带唯一索引），无需重复建索引。
+create index if not exists survey_sessions_participant_id_idx
+  on public.survey_sessions (participant_id);
+
+
+-- ───────────────────────────────────────────────────────────────────────────
+-- 11. 长表视图 analysis_long（条件 logit / 混合 logit 分析的输入）
+-- ───────────────────────────────────────────────────────────────────────────
+--
+-- 每个 DCE 题目展开成 2 行（left / right），chosen 标记被选中的那一行。
+-- 这样每道题恰好 1 行 chosen = true，可直接用于 clm / mlogit / clogit。
+--
+-- ⚠️ security_invoker = true 需要 PostgreSQL 15+（Supabase 新项目默认 ≥15）。
+--    它的作用是让视图按**查询者**的权限与 RLS 执行，避免 anon 通过视图绕过
+--    底表的 RLS。若在更低版本执行，请删除 WITH (security_invoker = true)
+--    这一行——底表 RLS 与 0003 中对 anon 的 REVOKE 仍然生效。
+--
+-- 关于重复执行：这里是 drop + create（而不是 create or replace view），
+-- 以便日后调整列定义。若已有其他对象依赖本视图，drop 会失败——
+-- 此时请先用 create or replace view 手工替换。
+
+drop view if exists public.analysis_long;
+
+create view public.analysis_long
+with (security_invoker = true)
+as
+select
+  c.participant_id,
+  p.questionnaire_version,
+  c.block_id               as assigned_block,
+  c.task_id,
+  c.task_display_order,
+  alt.alternative,
+  alt.profile_id,
+  alt.x1,
+  alt.x2,
+  alt.x3,
+  (alt.profile_id = c.selected_profile_id) as chosen,
+  c.response_duration_ms
+from public.dce_choices c
+join public.participants p
+  on p.participant_id = c.participant_id
+cross join lateral (
+  values
+    ('left'::text,  c.left_profile_id,  c.left_x1,  c.left_x2,  c.left_x3),
+    ('right'::text, c.right_profile_id, c.right_x1, c.right_x2, c.right_x3)
+) as alt (alternative, profile_id, x1, x2, x3);
+
+comment on view public.analysis_long is
+  'DCE 长表（每题 2 行：left/right）。字段：participant_id, questionnaire_version, assigned_block, task_id, task_display_order, alternative, profile_id, x1/x2/x3, chosen, response_duration_ms。分析前建议先筛选 participants.submission_status = ''submitted'' 与指定 questionnaire_version。';
+
+
+-- ───────────────────────────────────────────────────────────────────────────
+-- 12. 管理员判定函数（供 RLS 策略与后台接口使用）
+-- ───────────────────────────────────────────────────────────────────────────
+--
+-- SECURITY DEFINER：以函数属主（postgres = 表的属主）身份读取 research_admins，
+-- 因此可以绕过 research_admins 自身的 RLS，避免"策略里调用策略"的无限递归。
+-- search_path 固定，防止被劫持。
+--
+-- 注意：本函数只回答"当前 JWT 的邮箱是否在白名单里"，不返回任何研究数据。
+
+create or replace function public.is_research_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select exists (
+    select 1
+    from public.research_admins a
+    where lower(a.email) = lower(
+      coalesce(
+        nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'email',
+        nullif(current_setting('request.jwt.claim.email', true), '')
+      )
+    )
+  );
+$$;
+
+comment on function public.is_research_admin() is
+  '当前请求（JWT）的邮箱是否在 research_admins 白名单中。SECURITY DEFINER，只返回 boolean，不泄露任何研究数据。';
+
+-- 供服务端（service_role）在导出接口中校验"某个已登录邮箱是否为管理员"。
+-- 只允许 service_role 执行：普通 authenticated 用户不需要、也不允许查询他人邮箱。
+create or replace function public.is_research_admin_email(p_email text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select exists (
+    select 1
+    from public.research_admins a
+    where lower(a.email) = lower(nullif(btrim(p_email), ''))
+  );
+$$;
+
+comment on function public.is_research_admin_email(text) is
+  '判断给定邮箱是否为研究管理员。仅 service_role 可执行（见 0003_grants.sql）。';
+
+
+-- ───────────────────────────────────────────────────────────────────────────
+-- 13. 原子写入函数 submit_survey(payload jsonb)
+-- ───────────────────────────────────────────────────────────────────────────
+--
+-- 服务端接口 api/submit-survey.ts 只调用这一个函数：
+--     supabase.rpc('submit_survey', { payload })
+--
+-- 为什么必须是单一函数：
+--   * PostgREST 的每次 REST 调用都是独立事务；本函数在一次函数调用（= 一个事务）
+--     内完成 7 张表的写入。任何一步失败 → 整个问卷回滚，不会留下"半份数据"。
+--   * 函数内先做重复提交检查并对 participants 行加锁（FOR UPDATE），
+--     并发下由 participants.participant_id 唯一约束兜底 → 只有一份正式数据。
+--
+-- 入参 payload 的键与前端 SurveySubmission 一致（camelCase），另有两个服务端补充键：
+--     comprehension[].firstAnswer  服务端根据选项索引还原出的选项文字
+--     userAgent                    提交请求的 User-Agent
+--
+-- 安全：SECURITY DEFINER + search_path 固定；执行权限只授予 service_role
+--       （见 0003_grants.sql），anon/authenticated 无法调用。
+
+create or replace function public.submit_survey(payload jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_participant_id text;
+  v_version        text;
+  v_block          text;
+  v_status         text;
+  v_dce            jsonb;
+  v_ratings        jsonb;
+  v_comprehension  jsonb;
+  v_events         jsonb;
+  v_overall        jsonb;
+  v_identity       jsonb;
+begin
+  -- ── 0. 取出标量字段并把数组字段安全归一化 ───────────────────────────────
+  v_identity       := case when jsonb_typeof(payload -> 'identity')       = 'object' then payload -> 'identity'       else '{}'::jsonb end;
+  v_overall        := case when jsonb_typeof(payload -> 'overall')        = 'object' then payload -> 'overall'        else '{}'::jsonb end;
+  v_dce            := case when jsonb_typeof(payload -> 'dceChoices')     = 'array'  then payload -> 'dceChoices'     else '[]'::jsonb end;
+  v_ratings        := case when jsonb_typeof(payload -> 'profileRatings') = 'array'  then payload -> 'profileRatings' else '[]'::jsonb end;
+  v_comprehension  := case when jsonb_typeof(payload -> 'comprehension')  = 'array'  then payload -> 'comprehension'  else '[]'::jsonb end;
+  v_events         := case when jsonb_typeof(payload -> 'simulationEvents') = 'array' then payload -> 'simulationEvents' else '[]'::jsonb end;
+
+  v_participant_id := nullif(btrim(payload ->> 'participantId'), '');
+  v_version        := nullif(btrim(payload ->> 'questionnaireVersion'), '');
+  v_block          := nullif(btrim(payload ->> 'assignedBlock'), '');
+
+  -- ── 1. 最小完整性守卫（服务端已用 zod 校验过；此处给出清晰的数据库错误） ──
+  if v_participant_id is null then
+    raise exception 'participantId is required' using errcode = '22023';
+  end if;
+  if v_version is null then
+    raise exception 'questionnaireVersion is required' using errcode = '22023';
+  end if;
+  if v_block is null or v_block not in ('A', 'B') then
+    raise exception 'assignedBlock must be A or B' using errcode = '22023';
+  end if;
+  if v_identity ->> 'ageGroup' is null
+     or v_identity ->> 'respondentRole' is null
+     or v_identity ->> 'aiDeviceExperience' is null
+     or v_identity ->> 'caregivingExperience' is null then
+    raise exception 'identity (Q2-Q5) is incomplete' using errcode = '22023';
+  end if;
+  if v_overall ->> 'q8' is null or v_overall ->> 'q9' is null then
+    raise exception 'overall (Q8/Q9) is incomplete' using errcode = '22023';
+  end if;
+  if payload ->> 'startedAt' is null or payload ->> 'submittedAt' is null then
+    raise exception 'startedAt/submittedAt is required' using errcode = '22023';
+  end if;
+
+  -- ── 2. 问卷版本必须已登记且处于启用状态 ─────────────────────────────────
+  if not exists (
+    select 1 from public.questionnaire_versions qv
+    where qv.id = v_version and qv.is_active
+  ) then
+    raise exception 'questionnaire version % is not registered or not active', v_version
+      using errcode = '22023';
+  end if;
+
+  -- ── 3. 重复提交检查（行锁 + 唯一约束双保险） ─────────────────────────────
+  select p.submission_status
+    into v_status
+    from public.participants p
+   where p.participant_id = v_participant_id
+     for update;
+
+  if v_status = 'submitted' then
+    -- 23505 = unique_violation → 服务端映射为 HTTP 409
+    raise exception 'duplicate submission for participant %', v_participant_id
+      using errcode = '23505';
+  end if;
+
+  -- ── 4. 主表：新建，或覆盖同 participant_id 的 draft/failed 记录 ──────────
+  insert into public.participants (
+    participant_id, questionnaire_version, consent_status,
+    age_group, respondent_role, respondent_role_other,
+    ai_device_experience, caregiving_experience,
+    assigned_block, prior_experience,
+    started_at, submitted_at, total_duration_ms, submission_status
+  ) values (
+    v_participant_id,
+    v_version,
+    coalesce(nullif(payload ->> 'consentStatus', ''), 'agreed'),
+    v_identity ->> 'ageGroup',
+    v_identity ->> 'respondentRole',
+    coalesce(v_identity ->> 'respondentRoleOther', ''),
+    v_identity ->> 'aiDeviceExperience',
+    v_identity ->> 'caregivingExperience',
+    v_block,
+    coalesce((payload ->> 'priorExperience')::boolean, false),
+    (payload ->> 'startedAt')::timestamptz,
+    (payload ->> 'submittedAt')::timestamptz,
+    nullif(payload ->> 'totalDurationMs', '')::integer,
+    'submitted'
+  )
+  on conflict (participant_id) do update set
+    questionnaire_version = excluded.questionnaire_version,
+    consent_status        = excluded.consent_status,
+    age_group             = excluded.age_group,
+    respondent_role       = excluded.respondent_role,
+    respondent_role_other = excluded.respondent_role_other,
+    ai_device_experience  = excluded.ai_device_experience,
+    caregiving_experience = excluded.caregiving_experience,
+    assigned_block        = excluded.assigned_block,
+    prior_experience      = excluded.prior_experience,
+    started_at            = excluded.started_at,
+    submitted_at          = excluded.submitted_at,
+    total_duration_ms     = excluded.total_duration_ms,
+    submission_status     = excluded.submission_status;
+
+  -- ── 5. 子表：先清空同一参与者的旧行（重试场景），再整批写入 ──────────────
+  -- survey_sessions 例外：保留历史行（追加式审计），不做删除。
+  delete from public.dce_choices         where participant_id = v_participant_id;
+  delete from public.profile_ratings     where participant_id = v_participant_id;
+  delete from public.comprehension_checks where participant_id = v_participant_id;
+  delete from public.simulation_events   where participant_id = v_participant_id;
+  delete from public.survey_responses    where participant_id = v_participant_id;
+
+  -- 6.1 DCE 选择
+  insert into public.dce_choices (
+    participant_id, task_id, block_id, task_display_order,
+    left_profile_id, right_profile_id, selected_side, selected_profile_id,
+    left_x1, left_x2, left_x3, right_x1, right_x2, right_x3, response_duration_ms
+  )
+  select
+    v_participant_id,
+    item ->> 'taskId',
+    item ->> 'blockId',
+    (item ->> 'taskDisplayOrder')::smallint,
+    item ->> 'leftProfileId',
+    item ->> 'rightProfileId',
+    item ->> 'selectedSide',
+    item ->> 'selectedProfileId',
+    (item -> 'leftProfileAttributes'  ->> 'X1')::smallint,
+    (item -> 'leftProfileAttributes'  ->> 'X2')::smallint,
+    (item -> 'leftProfileAttributes'  ->> 'X3')::smallint,
+    (item -> 'rightProfileAttributes' ->> 'X1')::smallint,
+    (item -> 'rightProfileAttributes' ->> 'X2')::smallint,
+    (item -> 'rightProfileAttributes' ->> 'X3')::smallint,
+    (item ->> 'responseDurationMs')::integer
+  from jsonb_array_elements(v_dce) as arr(item);
+
+  -- 6.2 配置感知评价（12 个量表题按列展开）
+  insert into public.profile_ratings (
+    participant_id, profile_id, x1, x2, x3, rating_order,
+    s1, s2, s3, p1, p2, p3, a1, a2, a3, i1, i2, i3
+  )
+  select
+    v_participant_id,
+    item ->> 'profileId',
+    (item ->> 'X1')::smallint,
+    (item ->> 'X2')::smallint,
+    (item ->> 'X3')::smallint,
+    (item ->> 'ratingOrder')::smallint,
+    (item -> 'scores' ->> 'S1')::smallint,
+    (item -> 'scores' ->> 'S2')::smallint,
+    (item -> 'scores' ->> 'S3')::smallint,
+    (item -> 'scores' ->> 'P1')::smallint,
+    (item -> 'scores' ->> 'P2')::smallint,
+    (item -> 'scores' ->> 'P3')::smallint,
+    (item -> 'scores' ->> 'A1')::smallint,
+    (item -> 'scores' ->> 'A2')::smallint,
+    (item -> 'scores' ->> 'A3')::smallint,
+    (item -> 'scores' ->> 'I1')::smallint,
+    (item -> 'scores' ->> 'I2')::smallint,
+    (item -> 'scores' ->> 'I3')::smallint
+  from jsonb_array_elements(v_ratings) as arr(item);
+
+  -- 6.3 理解检查（first_answer 由服务端补充；缺失时退回选项序号字符串）
+  insert into public.comprehension_checks (
+    participant_id, question_id, first_answer, first_answer_index, is_correct, retry_count
+  )
+  select
+    v_participant_id,
+    item ->> 'questionId',
+    coalesce(nullif(item ->> 'firstAnswer', ''), 'option_' || (item ->> 'firstAnswerIndex')),
+    (item ->> 'firstAnswerIndex')::smallint,
+    coalesce((item ->> 'isCorrect')::boolean, false),
+    coalesce((item ->> 'retryCount')::smallint, 0)
+  from jsonb_array_elements(v_comprehension) as arr(item);
+
+  -- 6.4 模拟使用埋点
+  insert into public.simulation_events (
+    participant_id, task_id, profile_id, event_type, source,
+    event_timestamp_ms, duration_ms
+  )
+  select
+    v_participant_id,
+    nullif(item ->> 'taskId', ''),           -- JSON null / 缺省 都会得到 NULL
+    item ->> 'profileId',
+    item ->> 'eventType',
+    item ->> 'source',
+    (item ->> 'eventTimestampMs')::integer,
+    (item ->> 'durationMs')::integer          -- JSON null → NULL
+  from jsonb_array_elements(v_events) as arr(item);
+
+  -- 6.5 总体评价（一人一行）
+  insert into public.survey_responses (participant_id, q8, q9, q10)
+  values (
+    v_participant_id,
+    (v_overall ->> 'q8')::smallint,
+    v_overall ->> 'q9',
+    coalesce(v_overall ->> 'q10', '')
+  )
+  on conflict (participant_id) do update set
+    q8  = excluded.q8,
+    q9  = excluded.q9,
+    q10 = excluded.q10;
+
+  -- 6.6 问卷会话（追加式，不删除历史）
+  insert into public.survey_sessions (
+    participant_id, questionnaire_version, prior_experience,
+    user_agent, started_at, submitted_at
+  ) values (
+    v_participant_id,
+    v_version,
+    coalesce((payload ->> 'priorExperience')::boolean, false),
+    nullif(payload ->> 'userAgent', ''),
+    (payload ->> 'startedAt')::timestamptz,
+    (payload ->> 'submittedAt')::timestamptz
+  );
+
+  -- ── 7. 返回最小回执（不含研究数据，便于服务端确认写入） ──────────────────
+  return jsonb_build_object(
+    'participantId', v_participant_id,
+    'questionnaireVersion', v_version,
+    'submissionStatus', 'submitted',
+    'dceChoices', jsonb_array_length(v_dce),
+    'profileRatings', jsonb_array_length(v_ratings),
+    'simulationEvents', jsonb_array_length(v_events)
+  );
+end;
+$$;
+
+comment on function public.submit_survey(jsonb) is
+  '在一次事务内写入一份完整问卷（participants + dce_choices + profile_ratings + comprehension_checks + simulation_events + survey_responses + survey_sessions）。仅 service_role 可执行；重复提交抛 23505。';
+
+
+-- ───────────────────────────────────────────────────────────────────────────
+-- 14. 种子数据
+-- ───────────────────────────────────────────────────────────────────────────
+
+insert into public.questionnaire_versions (id, description, is_active)
+values
+  ('V1.0', '初版问卷（模块一至模块五 + DCE A/B 卷各 6 题 + 每人 4 个配置评价）。', true)
+on conflict (id) do nothing;
+
+-- 提示：research_config 为自由键值表，本文件不预置任何键，避免与代码中的常量产生
+--       两套"事实来源"。研究者可按需插入，例如：
+--       insert into public.research_config (key, value) values ('data_retention_note', '原始数据保存 5 年后删除');
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 0001_init.sql 结束。下一步：0002_rls_policies.sql（RLS 与策略）。
+-- ═══════════════════════════════════════════════════════════════════════════

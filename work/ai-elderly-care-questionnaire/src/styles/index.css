@@ -1,0 +1,148 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * 全局样式
+ *
+ * 可访问性基线（重要，本研究会接触中老年参与者）：
+ *   - 正文基准字号不低于 17px，行高宽松
+ *   - 焦点可见：统一使用高对比度外轮廓，且不依赖颜色单独传达状态
+ *   - 触控目标不小于 44px
+ *   - 尊重 prefers-reduced-motion
+ */
+
+@layer base {
+  :root {
+    color: #1c2f27;
+    background: #f8f8f3;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    /* 避免锚点跳转时被吸顶头部遮挡 */
+    scroll-padding-top: 5rem;
+  }
+
+  body {
+    min-width: 320px;
+    margin: 0;
+    /* 正文基准字号：面向中老年参与者上调 */
+    font-size: 1.0625rem;
+    line-height: 1.8;
+    background:
+      radial-gradient(circle at 8% 0%, rgba(233, 240, 232, 0.9), transparent 30rem),
+      radial-gradient(circle at 95% 8%, rgba(245, 237, 220, 0.55), transparent 26rem),
+      #f8f8f3;
+    background-attachment: fixed;
+  }
+
+  h1, h2, h3, h4 {
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+
+  button {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* 统一焦点样式：3px 香槟金描边 + 偏移，任何背景下都清晰可见 */
+  *:focus-visible {
+    outline: 3px solid #8e7040;
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background: #d7e7de;
+    color: #142c23;
+  }
+
+  /* 滚动条 */
+  ::-webkit-scrollbar {
+    width: 11px;
+    height: 11px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #eef0ea;
+  }
+  ::-webkit-scrollbar-thumb {
+    border: 3px solid #eef0ea;
+    border-radius: 999px;
+    background: #9aaa9f;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #7d8f84;
+  }
+}
+
+@layer components {
+  /* 屏幕阅读器专用文本 */
+  .sr-only-focusable:not(:focus):not(:focus-within) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  /* 深色监测画面的网格背景 */
+  .monitor-grid {
+    background-color: #14342b;
+    background-image:
+      linear-gradient(rgba(203, 232, 218, 0.055) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(203, 232, 218, 0.055) 1px, transparent 1px),
+      radial-gradient(circle at 75% 18%, rgba(88, 156, 133, 0.18), transparent 28%),
+      radial-gradient(circle at 20% 88%, rgba(70, 115, 98, 0.22), transparent 34%);
+    background-size: 24px 24px, 24px 24px, auto, auto;
+  }
+
+  .scene-scanline {
+    background: linear-gradient(180deg, transparent, rgba(157, 225, 190, 0.3), transparent);
+  }
+
+  /* 编辑式排版细节：段落首行不缩进，但保留中文标点悬挂空间 */
+  .prose-cn p {
+    margin-bottom: 1rem;
+  }
+  .prose-cn p:last-child {
+    margin-bottom: 0;
+  }
+}
+
+/* 减少动态效果：不仅缩短时长，也关闭循环动画 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* 高对比度模式 */
+@media (prefers-contrast: more) {
+  :root {
+    --tw-ring-color: #142c23;
+  }
+  body {
+    background: #ffffff;
+  }
+}
