@@ -1,22 +1,40 @@
-# Netlify 部署配置（备选方案）
+# Netlify 部署配置
 #
-# 说明：本项目优先部署到 Vercel。若改用 Netlify，请把 api/ 下的
-# serverless 函数按 Netlify Functions 的约定放置（netlify/functions/），
-# 或在 Netlify 上改用 Vercel 构建适配。详见 docs/DEPLOYMENT.md。
+# ⚠️ 重要：本文件位于**应用子目录**内。
+#    你的 GitHub 仓库根目录下没有 package.json（应用在 work/ai-elderly-care-questionnaire/），
+#    因此必须在 Netlify 里把 **Base directory** 设为 work/ai-elderly-care-questionnaire，
+#    否则 Netlify 会在仓库根构建 → 找不到 package.json → publish 目录为空 → 全站 404。
+#
+#    推荐做法（二选一）：
+#    A. 在 Netlify UI 里设置（推荐，最不易出错）：
+#         Base directory   : work/ai-elderly-care-questionnaire
+#         Build command    : npm run build
+#         Publish directory: dist
+#       注意：Base directory 一旦设置，下面 [build] 里的 command / publish
+#       都应以该目录为基准写相对路径（即 "npm run build" 与 "dist"）。
+#    B. 若 Netlify 的 Base directory 留空（从仓库根构建），
+#       则改用下面 [build] 段里被注释掉的那组值。
 
 [build]
   command = "npm run build"
   publish = "dist"
 
+  # ── 若 Base directory 留空，改用下面这两行，并删掉上面两行 ──
+  # command = "cd work/ai-elderly-care-questionnaire && npm ci && npm run build"
+  # publish = "work/ai-elderly-care-questionnaire/dist"
+
 [build.environment]
   NODE_VERSION = "20"
 
-# SPA 回退：让 /admin、/questionnaire/* 等前端路由刷新后仍可访问。
-# 注意：该规则排在 API 规则之后，避免吞掉函数请求。
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+# SPA 回退与安全响应头。
+#
+# 说明：回退规则同时写在 `public/_redirects` 里（构建时会复制到 dist/）。
+# 两者内容一致，互为兜底：即使 Netlify 因 Base directory 配置而忽略了本文件，
+# `public/_redirects` 仍然会生效。
+#
+# 为什么不使用 `/*  /index.html  200` 兜底：它会把缺失的静态文件也改写成
+# index.html（例如 /videos/fall-demo.mp4 会变成 200 + text/html），
+# 破坏"视频缺失时降级为占位界面"的行为。逐条列出路由更安全。
 
 [[headers]]
   for = "/*"

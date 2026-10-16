@@ -281,6 +281,60 @@ Vite 在**构建时**把 `VITE_` 开头的变量内联进前端 JavaScript。
 | Functions directory | `api`（**必须显式配置**，见 3.3） |
 | Node version | 20（可通过 `NODE_VERSION` 环境变量或 `.nvmrc` 固定） |
 
+### ⚠️ 最常见的 Netlify 全站 404 原因：Base directory
+
+**本仓库的根目录下没有 `package.json`** —— 应用位于子目录
+`work/ai-elderly-care-questionnaire/`。如果 Netlify 从仓库根构建：
+
+1. 找不到 `package.json`，构建产物为空；
+2. `publish = "dist"` 指向不存在的目录；
+3. 于是**每一个路径**（包括首页 `/`）都返回 Netlify 自己的 "Page not found"。
+
+**正确配置（推荐在 Netlify UI 的 Site configuration → Build & deploy 里设置）：**
+
+| 设置项 | 值 |
+|---|---|
+| Base directory | `work/ai-elderly-care-questionnaire` |
+| Build command | `npm run build` |
+| Publish directory | `dist` |
+
+`Base directory` 一旦设置，`Build command` 与 `Publish directory`
+都**以该目录为基准**（所以是 `dist`，不是 `work/ai-elderly-care-questionnaire/dist`），
+`netlify.toml` 也会从该目录读取。
+
+如果不想设置 Base directory，可改用仓库根构建，此时把 `netlify.toml` 的
+`[build]` 换成：
+
+```toml
+[build]
+  command = "cd work/ai-elderly-care-questionnaire && npm ci && npm run build"
+  publish = "work/ai-elderly-care-questionnaire/dist"
+```
+
+### SPA 回退：为什么逐条列路由而不是 `/*` 兜底
+
+`netlify.toml` 与 `public/_redirects`（构建时复制到 `dist/_redirects`）**都已提供**
+同一套回退规则，互为兜底 —— 即使 Netlify 因 Base directory 配置而忽略了
+`netlify.toml`，`public/_redirects` 依然生效。
+
+两者都**逐条列出**前端路由，而不是用 `/*  /index.html  200`：
+
+- 笼统的 `/*` 会把**缺失的静态文件**也改写成 `index.html`。
+  例如 `/videos/fall-demo.mp4` 在视频尚未提供时会返回 `200 text/html`，
+  而 `VideoPreview` 会因此误判"视频存在"，渲染出坏掉的 `<video>`
+  而不是友好的占位界面（这正是 `tests/videoFallback.test.ts` 覆盖的场景）。
+- 逐条列出可审计：只有真正的前端路由回退到 SPA 入口。
+
+已用模拟 Netlify `_redirects` 语义的静态服务器验证过（构建产物 + 规则文件）：
+
+| 路径 | 结果 |
+|---|---|
+| `/`、`/experience`、`/about`、`/privacy` | 200，SPA 入口 |
+| `/questionnaire`、`/questionnaire/consent`、`/questionnaire/dce` | 200，SPA 入口 |
+| `/admin`、`/404` | 200，SPA 入口 |
+| `/assets/nope.js`（不存在的静态文件） | 404（**不会**被改写成 HTML） |
+| `/videos/fall-demo.mp4`（尚未提供） | 404（因此正确降级为占位界面） |
+
 建议在项目根目录创建 `netlify.toml`：
 
 ```toml
