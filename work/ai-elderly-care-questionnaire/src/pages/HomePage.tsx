@@ -73,18 +73,23 @@ export default function HomePage() {
               <p>通过模拟不同系统配置，探索人们在安全保障、个人隐私和自主生活之间的权衡。</p>
             </div>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <ButtonLink to="/questionnaire/consent" size="lg" className="sm:min-w-56">
+            {/* 两个按钮：等宽、等高、单行。窄屏纵向铺满，sm 起并排平分 */}
+            <div className="mt-8 grid gap-3 sm:grid-cols-2 sm:max-w-xl">
+              <ButtonLink
+                to="/questionnaire/consent"
+                size="lg"
+                className="w-full whitespace-nowrap"
+              >
                 开始参与研究
-                <ArrowRight className="h-5 w-5" aria-hidden="true" />
+                <ArrowRight className="h-5 w-5 shrink-0" aria-hidden="true" />
               </ButtonLink>
 
               <Link
                 to="/experience"
-                className="inline-flex min-h-13 items-center justify-center gap-2 rounded-panel border border-forest-700 bg-white/70 px-6 text-[1rem] font-semibold text-forest-800 transition hover:bg-white"
+                className="inline-flex min-h-13 w-full items-center justify-center gap-2 whitespace-nowrap rounded-panel border border-forest-700 bg-white/70 px-4 text-[1rem] font-semibold text-forest-800 transition hover:bg-white"
               >
-                <MonitorPlay className="h-5 w-5" aria-hidden="true" />
-                先看看情景体验
+                <MonitorPlay className="h-5 w-5 shrink-0" aria-hidden="true" />
+                查看情景体验
               </Link>
             </div>
           </div>

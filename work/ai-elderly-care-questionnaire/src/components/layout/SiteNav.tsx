@@ -212,12 +212,12 @@ export default function SiteNav() {
     <>
       {/* ── 桌面端：左侧固定导航 ─────────────────────────────── */}
       <aside
-        className="sticky top-0 hidden h-screen w-[17rem] shrink-0 flex-col border-r border-sage-200 bg-cream-100/85 px-4 py-7 backdrop-blur lg:flex xl:w-[18.5rem]"
+        className="sticky top-0 hidden h-screen w-[15rem] shrink-0 flex-col border-r border-sage-200 bg-cream-100/85 px-3.5 py-6 backdrop-blur lg:flex xl:w-[16rem]"
         aria-label="网站导航"
       >
         <BrandMark />
 
-        <nav className="mt-8 flex flex-1 flex-col gap-1.5" aria-label="主导航">
+        <nav className="mt-6 flex flex-1 flex-col gap-1.5" aria-label="主导航">
           {NAV_ITEMS.map((item) => (
             <NavLinkItem key={item.to} item={item} />
           ))}

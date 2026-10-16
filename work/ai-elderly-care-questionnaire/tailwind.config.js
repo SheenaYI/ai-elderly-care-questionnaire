@@ -135,6 +135,10 @@ export default {
           '0%, 100%': { opacity: '0.18', transform: 'scale(0.7)' },
           '50%': { opacity: '0.85', transform: 'scale(1)' },
         },
+        floatSoft: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-4px)' },
+        },
         slideInLeft: {
           from: { transform: 'translateX(-100%)', opacity: '0.4' },
           to: { transform: 'translateX(0)', opacity: '1' },
@@ -158,6 +162,8 @@ export default {
         alert: 'alertRing 1.6s ease-in-out infinite',
         'slide-up': 'slideUp 260ms cubic-bezier(0.16, 1, 0.3, 1) both',
         'slide-in-left': 'slideInLeft 240ms cubic-bezier(0.16, 1, 0.3, 1) both',
+        // 节点轻微浮动；配合错开的 delay，避免整片同频跳动
+        'float-soft': 'floatSoft 6s ease-in-out infinite',
         // 首页轨道环：转速与方向各不相同，形成缓慢的"粒子环绕"感
         'ring-spin-slow': 'ringSpin 96s linear infinite',
         'ring-spin-slower': 'ringSpin 150s linear infinite reverse',
