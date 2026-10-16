@@ -71,17 +71,21 @@ npm install --cache "$PWD/.npm-cache"
 
 `vitest.config.ts` 配置为：
 
-- 测试环境：`node`（不启用 jsdom）
+- 测试环境：`jsdom`（`environmentOptions.jsdom.url = http://localhost/`），因为包含页面渲染测试
+- 初始化文件：`tests/setup.ts`（设置 `IS_REACT_ACT_ENVIRONMENT`、替换 jsdom 未实现的
+  `window.scrollTo`、每个测试后清理 DOM 与 `localStorage`）
 - 匹配范围：`tests/**/*.test.ts`
 
-现有四个测试文件（共 125 个断言）：
+现有六个测试文件（当前共 156 个断言，全部通过）：
 
 | 测试文件 | 覆盖内容 |
 |---|---|
-| `tests/dceTasks.test.ts` | 每卷 6 题、差分矩阵秩 = 3、属性水平平衡、每题 2 个属性变化、配置使用均衡 |
-| `tests/questionnaireData.test.ts` | 问卷文本、C1–C8 取值、12 个量表题、理解检查正确答案 |
-| `tests/randomization.test.ts` | 分卷、题序、左右交换、4 配置平衡分配与可复现性 |
-| `tests/validation.test.ts` | Zod 结构校验与研究语义校验（题目覆盖、左右一致、顺序排列等） |
+| `tests/dceTasks.test.ts` | C1–C8 配置编码、T01–T12 任务配对、A/B 分卷、设计完整性自查、配置使用均衡 |
+| `tests/questionnaireData.test.ts` | 问卷文本与模块一/二/四/五内容、三个实验属性、模拟脚本受控、待配置占位字段 |
+| `tests/randomization.test.ts` | 确定性随机数发生器、洗牌、分卷、题序与左右位置随机化、4 配置平衡分配及非法方案识别 |
+| `tests/validation.test.ts` | 提交载荷结构校验（Zod）、研究语义校验、理解检查一致性、提交前完成度、属性快照 |
+| `tests/rendering.test.ts` | 公共页面、问卷步骤、路由表、管理后台安全渲染行为、模拟组件渲染 |
+| `tests/videoFallback.test.ts` | 演示视频缺失 / SPA 回退返回 HTML / 网络失败时均退化为占位界面，不崩溃 |
 
 其中 `checkDesignIntegrity()`（位于 `src/data/dceTasks.ts`）是设计完整性的核心自查函数；
 随机化模块还提供 `validateTaskDisplayPlan()`、`validateRatingPlan()`、
@@ -142,7 +146,7 @@ ai-elderly-care-questionnaire/
 │   ├── schema.sql               # 单文件完整结构（SQL Editor 一次性执行）
 │   ├── migrations/              # 0001_init / 0002_rls_policies / 0003_grants
 │   └── README.md                # 建库步骤、安全模型、自检查询、事务语义
-├── tests/                       # Vitest：dceTasks / questionnaireData / randomization / validation
+├── tests/                       # Vitest：dceTasks / questionnaireData / randomization / validation / rendering
 ├── .env.example                 # 环境变量模板（只含占位符，可提交）
 ├── index.html                   # Vite HTML 模板（语言 zh-CN，noindex）
 ├── package.json
@@ -401,7 +405,7 @@ Vite 会自动尝试下一个可用端口，并在终端打印实际地址。也
 
 ### `npm test` 失败或提示没有测试文件
 
-`npm test` 会运行 `tests/` 下的 4 个测试文件（125 个断言），全部应为通过。
+`npm test` 会运行 `tests/` 下的 6 个测试文件（当前 156 个断言），全部应为通过。
 如果提示找不到测试文件，说明 `tests/` 被清空或工作目录不对（必须在项目根目录执行）。
 如果某个测试失败，通常意味着研究数据被改动而设计校验未通过
 （例如矩阵秩不再等于 3、属性水平失衡），**这属于研究设计问题，不是测试问题**。

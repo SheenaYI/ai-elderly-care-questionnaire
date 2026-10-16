@@ -1,0 +1,32 @@
+# Netlify 部署配置（备选方案）
+#
+# 说明：本项目优先部署到 Vercel。若改用 Netlify，请把 api/ 下的
+# serverless 函数按 Netlify Functions 的约定放置（netlify/functions/），
+# 或在 Netlify 上改用 Vercel 构建适配。详见 docs/DEPLOYMENT.md。
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# SPA 回退：让 /admin、/questionnaire/* 等前端路由刷新后仍可访问。
+# 注意：该规则排在 API 规则之后，避免吞掉函数请求。
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Cache-Control = "no-store"

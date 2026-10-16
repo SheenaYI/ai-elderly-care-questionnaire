@@ -3,6 +3,26 @@ import { AlertCircle, LoaderCircle, PlaySquare } from 'lucide-react'
 import { SIMULATION_VIDEO_PATH } from './simulationScript'
 
 /**
+ * 判断响应是否真的是视频文件。
+ *
+ * ⚠️ 不能只看 HTTP 状态码：单页应用的部署配置（或某些静态服务器）
+ *    会把未命中的路径回退到 index.html，此时状态码仍是 200，
+ *    但 Content-Type 是 text/html。若只判断 `response.ok`，
+ *    组件会以为视频存在，渲染出的 <video> 随后加载失败，
+ *    参与者会看到一块黑屏/报错，而不是友好的占位界面。
+ *
+ * 因此这里同时校验：状态码为 2xx，且 Content-Type 属于视频类型。
+ */
+function looksLikeVideo(response: Response): boolean {
+  if (!response.ok) return false
+  const type = (response.headers.get('content-type') ?? '').toLowerCase()
+  // 未提供 Content-Type 时保守接受（部分静态服务器如此返回）
+  if (type === '') return true
+  if (type.startsWith('text/html')) return false
+  return type.startsWith('video/') || type.startsWith('application/octet-stream')
+}
+
+/**
  * 模拟事件视频预览。
  *
  * - 视频为**本地静态文件**，不使用任何外部媒体源。
@@ -17,7 +37,7 @@ export default function VideoPreview() {
     let active = true
     fetch(SIMULATION_VIDEO_PATH, { method: 'HEAD' })
       .then((response) => {
-        if (active) setStatus(response.ok ? 'ready' : 'missing')
+        if (active) setStatus(looksLikeVideo(response) ? 'ready' : 'missing')
       })
       .catch(() => {
         if (active) setStatus('missing')

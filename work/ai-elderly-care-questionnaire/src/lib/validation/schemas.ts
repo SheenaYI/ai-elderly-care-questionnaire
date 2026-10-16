@@ -3,17 +3,28 @@
  *
  * 服务端提交接口 (`api/submit-survey.ts`) 直接 import 本文件，
  * 保证"客户端校验"与"服务端校验"完全一致，服务端不信任客户端结果。
+ *
+ * ⚠️ 本文件及其依赖链**刻意使用相对路径导入**，不使用 `@/` 别名。
+ *    原因：前端构建（Vite）会解析 tsconfig 的 paths 别名，但
+ *    serverless 平台的函数打包器通常不读取 tsconfig 的 paths，
+ *    若此处使用 `@/` 别名，部署后接口会在运行时报模块解析失败。
+ *    此处目录层级固定（src/lib/validation → ../../data），因此相对路径安全。
  */
 
 import { z } from 'zod'
-import { PROFILE_IDS } from '@/data/profiles'
-import { ALL_TASK_IDS, BLOCK_TASK_IDS, TASKS_PER_BLOCK, PROFILES_PER_PARTICIPANT } from '@/data/dceTasks'
-import { ALL_SCALE_ITEM_IDS, SCALE_ITEM_COUNT } from '@/data/scales'
+import { PROFILE_IDS } from '../../data/profiles'
+import {
+  ALL_TASK_IDS,
+  BLOCK_TASK_IDS,
+  TASKS_PER_BLOCK,
+  PROFILES_PER_PARTICIPANT,
+} from '../../data/dceTasks'
+import { ALL_SCALE_ITEM_IDS, SCALE_ITEM_COUNT } from '../../data/scales'
 import {
   COMPREHENSION_QUESTIONS,
   QUESTIONNAIRE_VERSION,
   correctOptionIndex,
-} from '@/data/questionnaire'
+} from '../../data/questionnaire'
 
 // ─────────────────────────────────────────────────────────────
 // 基础枚举

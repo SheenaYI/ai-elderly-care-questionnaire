@@ -125,29 +125,59 @@ Vite 在**构建时**把 `VITE_` 开头的变量内联进前端 JavaScript。
 `/questionnaire/:step`、`/admin`、`/404`。
 
 如果没有重写规则，用户直接访问 `https://<your-domain>/about` 或刷新该页会得到 404。
-**必须在项目根目录创建 `vercel.json`**（该文件当前尚不存在，需要新建）：
+仓库根目录**已包含** `vercel.json`，内容如下（可直接使用）：
 
 ```json
 {
-  "routes": [
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/questionnaire/:step", "destination": "/index.html" },
+    { "source": "/questionnaire", "destination": "/index.html" },
+    { "source": "/experience", "destination": "/index.html" },
+    { "source": "/about", "destination": "/index.html" },
+    { "source": "/privacy", "destination": "/index.html" },
+    { "source": "/admin", "destination": "/index.html" },
+    { "source": "/404", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
+      ]
+    },
+    { "source": "/api/(.*)", "headers": [{ "key": "Cache-Control", "value": "no-store" }] }
   ]
 }
 ```
 
-含义：先交给 `handle: filesystem` 处理（静态文件 `dist/` 与 `api/` 下的 Serverless Functions
-都算文件系统命中），只有都没命中时才回退到 `/index.html`，由前端路由接管。
+**为什么使用"逐条列出前端路由"而不是 `"/(.*)"` 兜底？**
 
-等价写法（使用 `rewrites`）：
+兜底写法（`{"source": "/(.*)", "destination": "/index.html"}`）会把
+**真实存在的静态文件**也重写成 `index.html`，最典型的受害者是：
 
-```json
-{
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
-}
-```
+- `/videos/fall-demo.mp4` —— 研究团队的演示视频，被重写后视频永远加载不出来
+  （`VideoPreview` 会退化为占位界面）；
+- `/assets/*.js`、`/assets/*.css` —— 构建产物，一旦被重写页面直接白屏。
 
-> 请**不要**同时使用 `routes` 与 `rewrites` / `redirects` / `headers`，Vercel 不允许混用。
+逐条列出路由可以完全避免这类问题：只有明确列出的前端路由才回退到 `index.html`，
+静态资源与 `api/` 函数都按文件系统正常命中。
+
+> 注意：请**不要**同时使用 `routes` 与 `rewrites` / `redirects` / `headers`，Vercel 不允许混用。
+> 本仓库只使用 `rewrites` + `headers`。
+
+> Netlify 备选方案见 `netlify.toml`（已提供 SPA 回退与安全响应头）；但 Netlify 需要额外的
+> 函数适配层，详见 3.2 节。
+
+
 
 无论采用哪种写法，部署后都必须验证 `/api/submit-survey` 仍然返回**函数的响应**
 而不是被回退成 `index.html`——见第 4 节验证清单第 15 项。

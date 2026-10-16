@@ -26,6 +26,8 @@
 -- 因此下面的 DO 块在 Supabase 上是**无操作**（只做一次 pg_roles 查询）。
 -- 只有在本地或自建 PostgreSQL 上执行 schema.sql 时才会创建它们
 --（自建环境还需按 PostgREST 的 db-anon-role / JWT 配置把角色接到自己的认证体系）。
+-- 注意：给 service_role 附加 BYPASSRLS 需要超级用户权限；自建环境请以
+--       postgres（超级用户）身份执行，否则请手工 `alter role service_role bypassrls;`。
 
 do $$
 begin

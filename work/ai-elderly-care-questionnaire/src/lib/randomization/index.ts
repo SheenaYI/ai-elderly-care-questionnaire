@@ -143,6 +143,27 @@ export function buildTaskDisplayPlan(block: BlockId, seed: string | number): Dce
 // ─────────────────────────────────────────────────────────────
 
 /**
+ * 由参与者标识推导分配序号（0–7）。
+ *
+ * 为什么需要它：`buildRatingPlan` 的起点偏移决定该参与者评价哪 4 个配置。
+ * 若所有参与者的偏移都为 0，则**每个人都会评价同一组配置**，
+ * 总体样本中其余配置得不到任何评价——这是必须避免的设计缺陷。
+ *
+ * 机制：取 participant_id 的 FNV-1a 散列对 8 取模。由于 participant_id 为
+ * 随机 UUID，散列结果在 8 个桶中近似均匀分布，因此整体样本仍满足
+ * "各配置被评价次数尽量均衡"的要求。
+ *
+ * ⚠️ 已知局限（在 docs/RESEARCH_NOTES.md 与 DATA_DICTIONARY.md 中说明）：
+ *     该机制保证的是**批次层面**的均衡，而非严格的前 N 人逐轮均衡。
+ *     若要严格保证，应由服务端在数据收集时按到达顺序分配 sequence_index
+ *     并下发给前端。当前实现未引入该接口，以避免在缺少后端配置时
+ *     阻断问卷填写。正式发放前应由研究团队确认采用哪种方式。
+ */
+export function sequenceIndexForParticipant(participantId: string): number {
+  return hashString(`seq:${participantId}`) % PROFILE_IDS.length
+}
+
+/**
  * 4 个配置的平衡分配方案。
  *
  * 机制说明（可复现、可审计）：

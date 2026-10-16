@@ -56,11 +56,14 @@
 | 样式 | Tailwind CSS 3（深森林绿 / 鼠尾草绿 / 奶油白，面向中老年参与者上调正文字号） |
 | 路由 | React Router 6（`BrowserRouter`，部署时需 SPA 重写） |
 | 状态管理 | Zustand（问卷状态 + 本地草稿持久化） |
-| 表单校验 | Zod + react-hook-form（前后端共用同一套校验规则） |
+| 表单校验 | Zod（前后端共用同一套校验规则：前端提交前自检，服务端独立复核） |
 | 后端 | Supabase（PostgreSQL + Auth + Row Level Security） |
-| 服务端接口 | `api/` 目录下的 Serverless Function（Vercel 自动识别） |
-| 测试 | Vitest |
+| 服务端接口 | `api/` 目录下的 Serverless Function（Vercel 自动识别）：提交与 CSV 导出 |
+| 测试 | Vitest + jsdom（6 个测试文件，156 个断言，含页面渲染与视频降级测试） |
 | 图标 | lucide-react |
+
+> 说明：表单状态由 Zustand 统一管理，校验全部由 Zod 完成（前后端共用同一套规则），
+> 因此本项目**没有**引入 react-hook-form 等表单库，避免不必要的依赖。
 
 ---
 
@@ -74,6 +77,8 @@ npm test                                 # 运行测试
 
 不配置任何环境变量也能启动：此时平台处于 **Demo 模式**，问卷可以完整填写，
 但提交后的数据**只留在你自己的浏览器里，不会写入云端**。
+需要真实提交时，把 `.env.example` 复制为 `.env.local` 并填入 Supabase 配置；
+环境变量的公开/私有划分见 [docs/SETUP.md](docs/SETUP.md) 第 5 节。
 
 其它常用命令：`npm run build`（含类型检查）、`npm run preview`、`npm run typecheck`。
 完整说明见 [docs/SETUP.md](docs/SETUP.md)。
@@ -85,9 +90,10 @@ npm test                                 # 运行测试
 | 文档 | 内容 |
 |---|---|
 | [docs/SETUP.md](docs/SETUP.md) | 本地开发：环境要求、命令、项目结构、环境变量、如何修改研究内容、修改研究设计的强制流程 |
-| [docs/DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md) | 数据字典：九张表的字段含义、C1–C8 与 T01–T12 编码表、量表题与记分方向、长表导出与表连接、DCE 选择记录示例 |
+| [docs/DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md) | 数据字典：十张表与 `analysis_long` 视图的字段含义、C1–C8 与 T01–T12 编码表、量表题与记分方向、长表导出与表连接、DCE 选择记录示例 |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | 部署：Vercel（主要）与 Netlify（备选）、SPA 重写、Serverless Functions、环境变量、上线后验证清单 |
 | [docs/RESEARCH_NOTES.md](docs/RESEARCH_NOTES.md) | 研究设计审查：已核对通过项、需要研究团队确认的问题、本项目明确不做的事 |
+| [supabase/README.md](supabase/README.md) | 建库步骤、Auth 与管理员白名单、RLS/权限自检查询、`submit_survey()` 事务语义 |
 
 研究的原始材料位于仓库的 `work/source/` 目录（V1.0 的 Word 文件与纯文本转录）。
 
@@ -116,7 +122,7 @@ npm test                                 # 运行测试
 
 已完成（原型阶段）：
 
-- 五个公开页面与 `/admin` 的路由骨架，右侧固定导航与移动端折叠菜单
+- 五个公开页面与 `/admin` 路由，右侧固定导航、移动端折叠菜单、深链接可刷新
 - 研究内容的单一数据来源（`src/data/`）：C1–C8 配置、T01–T12 任务表、
   Q1–Q10 问卷文本、12 个量表题、A/B 两卷分卷规则
 - 随机化引擎：随机分卷、题序随机、每题左右随机、每人 4 配置的平衡分配，
@@ -125,12 +131,21 @@ npm test                                 # 运行测试
   （每卷 6 题、差分矩阵秩 = 3、属性水平平衡、每题 2 个属性变化）
 - 本地草稿持久化与恢复、Demo 模式与真实提交模式的明确区分
 - 情景体验与模拟事件脚本、视频缺失时的占位降级
+- 数据库结构与安全策略：`supabase/schema.sql` 及三个迁移（建表、RLS 策略、权限回收），
+  含 DCE 长表视图 `analysis_long` 与单事务写入函数 `submit_survey()`；
+  匿名角色对全部表**无任何权限**
+- 服务端接口：`POST /api/submit-survey`（唯一写入通道，服务端权威校验）与
+  `GET /api/admin/export`（需登录 + `research_admins` 白名单，导出带 BOM 的 CSV）
+- 研究管理后台：邮箱密码登录、统计面板、上线前检查、逐题选择分布与导出入口
+- 测试：6 个 Vitest 测试文件、156 个断言（设计完整性、随机化、数据一致性、校验规则、
+  页面渲染），`npm run typecheck` 与 `npm test` 当前均通过
 
 **正式数据收集之前仍必须完成：**
 
-1. **Supabase 凭据尚未配置。** 需要提供项目 URL、anon 公钥（公开）与
-   `SUPABASE_SERVICE_ROLE_KEY`（仅服务端），并执行数据库 schema 与 RLS 策略。
-   在配置完成前，站点只能以 Demo 模式运行，数据不会写入云端。
+1. **Supabase 凭据尚未配置。** 需要在部署平台补齐项目 URL、anon 公钥（公开）与
+   `SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY`（仅服务端；模板见 `.env.example`），
+   并执行数据库 schema 与 RLS/权限迁移、把管理员邮箱写入 `research_admins` 白名单、
+   关闭 Auth 的公开注册。在配置完成前，站点只能以 Demo 模式运行，数据不会写入云端。
 2. **研究团队信息尚未填写。** `src/data/placeholders.ts` 中 9 个字段仍为
    `[待填写：…]`，包括所属学校或研究单位、研究负责人、研究联系人及邮箱、
    伦理审批编号、预计填写时间、数据保存期限、可访问数据的人员范围、
@@ -139,6 +154,8 @@ npm test                                 # 运行测试
 4. **Pilot 试填尚未完成。** 按 V1.0 要求，需先进行 3–5 人认知访谈，
    再招募约 20–30 人完整试填（尽量覆盖老人本人及照护者），
    据此检查属性理解、选择分布、位置效应与量表质量，并修订后复测。
+5. **部署配置文件尚未创建。** 仓库中还没有 `vercel.json`（或 `netlify.toml`）；
+   React Router 的 SPA 重写必须随之补齐，`/admin` 与问卷深链接才能直接访问。
 
 > **本站尚未获准用于正式数据收集。** 必须完成伦理审查与 Pilot 测试之后，
 > 才可对外发放。在此之前请仅用于内部评审、界面开发与演示。

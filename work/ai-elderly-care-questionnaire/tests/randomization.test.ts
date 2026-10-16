@@ -7,6 +7,7 @@ import {
   createRng,
   hashString,
   shuffle,
+  sequenceIndexForParticipant,
   validateRatingPlan,
   validateTaskDisplayPlan,
 } from '@/lib/randomization'
@@ -262,6 +263,55 @@ describe('每人评价 4 个不同配置（平衡分配）', () => {
     const audit = auditRatingAllocation(Array.from({ length: 137 }, (_, i) => i))
     expect(audit.maxMinDifference).toBeLessThanOrEqual(1)
     expect(audit.balanced).toBe(true)
+  })
+
+  it('不同参与者会评价不同的配置组合（避免所有人都评同一组）', () => {
+    // 模拟真实的随机 participant_id（UUID v4 形式）
+    const ids = Array.from({ length: 24 }, (_, i) => `9f1c2b3a-0000-4000-8000-${String(i).padStart(12, '0')}`)
+    const sets = new Set(
+      ids.map((id) => [...buildRatingPlan(sequenceIndexForParticipant(id), 'seed')].sort().join(',')),
+    )
+    expect(sets.size).toBeGreaterThan(1)
+  })
+
+  it('由 participant_id 推导的序号覆盖全部 8 个偏移（散列分布均匀）', () => {
+    const counts = new Array(8).fill(0)
+    for (let i = 0; i < 800; i += 1) {
+      const id = `participant-${i}-${(i * 7919).toString(36)}`
+      counts[sequenceIndexForParticipant(id)] += 1
+    }
+    // 每个桶都应被使用，且分布大致均匀（800/8 = 100）
+    for (const [index, count] of counts.entries()) {
+      expect(count, `偏移 ${index} 的命中次数`).toBeGreaterThan(50)
+      expect(count, `偏移 ${index} 的命中次数`).toBeLessThan(160)
+    }
+  })
+
+  it('按 participant_id 分配时，大样本下各配置被评价次数基本均衡', () => {
+    // 说明：散列分桶是"期望均匀"，不是"严格均匀"——每个桶恰好贡献
+    // 4 次评价，因此各配置被评价次数 ≈ 参与者数 / 2，允许抽样波动。
+    // 严格逐轮均衡由按到达顺序分配 sequence_index 保证（见 RESEARCH_NOTES）。
+    const N = 800
+    const indices = Array.from({ length: N }, (_, i) =>
+      sequenceIndexForParticipant(`uuid-${i}-${(i * 104729).toString(36)}`),
+    )
+    const audit = auditRatingAllocation(indices)
+
+    expect(audit.totalAssignments).toBe(N * PROFILES_PER_PARTICIPANT)
+
+    const expected = (N * PROFILES_PER_PARTICIPANT) / PROFILE_IDS.length
+    const values = PROFILE_IDS.map((id) => audit.counts[id])
+    // 每个配置都被评价到
+    for (const id of PROFILE_IDS) {
+      expect(audit.counts[id], `配置 ${id} 至少被评价一次`).toBeGreaterThan(0)
+    }
+    // 与理论期望的偏差在 15% 以内
+    for (const [index, value] of values.entries()) {
+      const deviation = Math.abs(value - expected) / expected
+      expect(deviation, `配置 ${PROFILE_IDS[index]} 偏差 ${(deviation * 100).toFixed(1)}%`).toBeLessThan(0.15)
+    }
+    // 最大最小差远小于总量
+    expect(audit.maxMinDifference / expected).toBeLessThan(0.25)
   })
 
   it('评价顺序在配置集合固定的前提下被打乱', () => {

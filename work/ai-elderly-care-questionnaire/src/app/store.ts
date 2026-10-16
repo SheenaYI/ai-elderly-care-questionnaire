@@ -38,6 +38,7 @@ import {
   buildRatingPlan,
   buildTaskDisplayPlan,
   profileAttributes,
+  sequenceIndexForParticipant,
   validateRatingPlan,
 } from '@/lib/randomization'
 import {
@@ -254,7 +255,9 @@ export const useQuestionnaire = create<QuestionnaireState>((set, get) => ({
     if (draft.ratingPlan.length > 0) return // 已稳定
 
     const seed = `${draft.participantId}:${draft.questionnaireVersion}:ratings`
-    const plan = buildRatingPlan(sequenceIndex ?? 0, seed)
+    // 未显式传入序号时，由 participant_id 推导，保证不同参与者评价不同的配置组合
+    const resolvedIndex = sequenceIndex ?? sequenceIndexForParticipant(draft.participantId)
+    const plan = buildRatingPlan(resolvedIndex, seed)
     const check = validateRatingPlan(plan)
     if (!check.ok) {
       // 理论不可达；若不满足研究要求则退回到确定性方案，保证问卷可继续
