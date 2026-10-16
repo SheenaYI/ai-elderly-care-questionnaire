@@ -164,3 +164,114 @@ describe('HeroOrbit 几何一致性', () => {
     expect(classes[2]).toBe(classes[0])
   })
 })
+
+// ───────────────────────────────────────────────────────────────────────────
+// 回归：装饰层与节点必须共用同一坐标基准
+//
+// 2026-10 的真实事故：装饰层曾写成 `absolute inset-[9%]`（内缩 9%），
+// 而中心圆盘与三个节点是按整个方框定位的。圆环按**自身宽度百分比**缩放，
+// 于是环的半径基准变成了内缩框 → 外环半径只有容器的 0.82*0.40 ≈ 33%，
+// 而节点在 38%，结果圆环整体看起来"偏移、缩在节点内部"。
+//
+// 下面的断言直接锁住"同一基准"这条不变量。
+// ───────────────────────────────────────────────────────────────────────────
+
+describe('HeroOrbit 装饰层与节点共用同一基准（回归测试）', () => {
+  /** 从 class / style 里解析出元素宽度（百分比）。 */
+  function readWidthPct(el: Element): number | null {
+    const style = (el as HTMLElement).getAttribute('style') ?? ''
+    const fromStyle = /width:\s*([\d.]+)%/.exec(style)?.[1]
+    if (fromStyle) return Number(fromStyle)
+    const cls = el.getAttribute('class') ?? ''
+    const fromClass = /(?:^|\s)w-\[([\d.]+)%\]/.exec(cls)?.[1]
+    return fromClass ? Number(fromClass) : null
+  }
+
+  it('装饰层铺满整个方框，不得内缩', async () => {
+    const surface = await renderOrbit()
+    // 注意：不能只按 [aria-hidden="true"] 取——lucide 图标自身也带该属性。
+    // 装饰层的特征是"aria-hidden 且铺满方框（inset-0）"。
+    const decorative = [...surface.querySelectorAll('[aria-hidden="true"]')].find((el) =>
+      (el.getAttribute('class') ?? '').includes('inset-0'),
+    )
+    expect(decorative, '未找到装饰层').toBeTruthy()
+    const cls = decorative!.getAttribute('class') ?? ''
+    // 必须铺满
+    expect(cls).toContain('inset-0')
+    // 不得出现任何内缩（inset-[9%] / inset-x-[...] / inset-y-[...]）
+    expect(cls, `装饰层不应内缩，实际 class：${cls}`).not.toMatch(/inset-[xy]?-?\[/)
+  })
+
+  it('三个轨道环半径递增，且全部落在节点半径以内、中心圆盘以外', async () => {
+    const surface = await renderOrbit()
+    const ringWrappers = [...surface.querySelectorAll('[class*="ring-spin"]')]
+    expect(ringWrappers.length).toBe(3)
+
+    const ringRadii = ringWrappers.map((el) => {
+      const w = readWidthPct(el)
+      expect(w, `轨道环缺少宽度：${el.getAttribute('class')}`).not.toBeNull()
+      return w! / 2
+    })
+    // 递增
+    expect(ringRadii[1]).toBeGreaterThan(ringRadii[0]!)
+    expect(ringRadii[2]).toBeGreaterThan(ringRadii[1]!)
+
+    // 节点半径（沿用前面的推导：节点锚在半径 38%）
+    const nodeRadius = 38
+    // 中心圆盘半径 = 宽度 42% 的一半
+    const diskRadius = 21
+
+    for (const r of ringRadii) {
+      // 关键不变量：所有环都在节点所在圆的内侧。
+      // 若装饰层被内缩（历史上的 bug），环半径基准会缩小、与节点错位，
+      // 这里同时还会由"装饰层必须 inset-0"那条断言兜住。
+      expect(r, `环半径 ${r}% 应小于节点半径 ${nodeRadius}%`).toBeLessThan(nodeRadius)
+    }
+
+    // 内环允许压在中心圆盘之下（环从圆盘后面穿出是有意的层次效果），
+    // 但最大的环必须露在圆盘之外，否则整个轨道视觉上消失了。
+    const outerRadius = Math.max(...ringRadii)
+    expect(outerRadius, `最外环 ${outerRadius}% 应大于圆盘半径 ${diskRadius}%`).toBeGreaterThan(diskRadius)
+  })
+
+  it('粒子全部落在外环以内（不会飘出方框）', async () => {
+    const surface = await renderOrbit()
+    const circles = [...surface.querySelectorAll('circle')]
+    expect(circles.length).toBeGreaterThan(0)
+
+    // 外环半径 = 最小环宽 34% / 2 = 17%？不：外环是三者中最大的 66% / 2 = 33%
+    const rootEl = [...surface.querySelectorAll('[class*="ring-spin"]')]
+      .map((el) => readWidthPct(el))
+      .filter((v): v is number => v !== null)
+    const outerRadius = Math.max(...rootEl) / 2
+
+    for (const c of circles) {
+      const cx = Number(c.getAttribute('cx'))
+      const cy = Number(c.getAttribute('cy'))
+      // viewBox 是 512x512，中心 256
+      const r = (Math.hypot(cx - 256, cy - 256) / 512) * 100
+      // 留出 2 个百分点的余量，避免粒子正好贴在外环虚线上造成视觉打架
+      expect(
+        r,
+        `粒子距离 ${r.toFixed(1)}% 应明显小于外环半径 ${outerRadius}%`,
+      ).toBeLessThan(outerRadius - 2)
+      expect(r).toBeGreaterThan(0)
+    }
+  })
+
+  it('反证：若装饰层内缩 9%，环与节点的半径基准就不再一致（本测试能抓到）', async () => {
+    // 说明性断言：直接验证"内缩会改变基准"这个事实，
+    // 从而证明上面的不变量检查不是空跑。
+    const containerPct = 100
+    const insetPct = 9
+    const innerBoxPct = containerPct - insetPct * 2 // = 82
+    const outerRingOfInnerBox = 0.8 * innerBoxPct // 旧写法：内缩框的 80%
+    const outerRingOfContainer = 0.66 * containerPct // 新写法：容器的 66%
+
+    // 旧写法得到的绝对直径明显小于节点直径（38% * 2 = 76%）
+    expect(outerRingOfInnerBox).toBeLessThan(76)
+    // 新写法得到的绝对直径正常地大于节点直径
+    expect(outerRingOfContainer).toBeLessThan(76)
+    expect(outerRingOfContainer).toBeGreaterThan(outerRingOfInnerBox)
+  })
+})

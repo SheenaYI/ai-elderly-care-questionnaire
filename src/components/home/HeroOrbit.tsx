@@ -13,6 +13,12 @@ import { HeartHandshake, House, ListFilter, Lock, ShieldCheck } from 'lucide-rea
  *     这样"轨道区"是一个干净的方框，圆环与三个节点共享**同一个圆心**，
  *     不会再出现"节点不在一个圆上"的情况，顶部标签也不可能压到节点。
  *   - 三个节点按 90° / 210° / 330° 布置，在视觉上就是正三角、彼此等距。
+ *   - **装饰层（环 / 粒子）必须铺满同一个正方形，不得内缩**：圆环按自身宽度
+ *     百分比缩放，若把它放进一个 `inset-[x%]` 的内缩框，环的尺寸与半径基准就
+ *     与圆盘、节点不同，会出现"圆环整体偏移 / 缩在节点里面"的错位。
+ *     2026-10 曾因此出现过一次圆心偏移，已修正并由
+ *     tests/heroOrbitGeometry.test.ts 锁定（断言装饰层铺满、且各环半径与
+ *     节点半径同基准）。
  *   - 节点坐标由三角函数算出并写成静态 class（不拼字符串），
  *     因此 Tailwind 能正常提取，也不依赖运行时计算。
  *
@@ -30,26 +36,26 @@ const CENTER = SIZE / 2
 
 /** 粒子：半径比例（相对轨道区）/ 起始角度 / 尺寸(px) / 动画延迟(s)。位置固定。 */
 const PARTICLES: readonly { r: number; a: number; s: number; d: number }[] = [
-  // 内圈
-  { r: 0.17, a: 20, s: 3, d: 0.0 },
-  { r: 0.17, a: 128, s: 2, d: 1.1 },
-  { r: 0.17, a: 244, s: 2.5, d: 2.2 },
-  // 中圈
-  { r: 0.28, a: 64, s: 2.5, d: 0.4 },
-  { r: 0.28, a: 172, s: 2, d: 1.5 },
-  { r: 0.28, a: 296, s: 3, d: 2.6 },
-  // 外圈
-  { r: 0.40, a: 8, s: 2, d: 0.8 },
-  { r: 0.40, a: 100, s: 3, d: 1.9 },
-  { r: 0.40, a: 208, s: 2.5, d: 3.0 },
-  { r: 0.40, a: 324, s: 2, d: 0.2 },
+  // 内圈（贴近内环）
+  { r: 0.14, a: 20, s: 3, d: 0.0 },
+  { r: 0.14, a: 128, s: 2, d: 1.1 },
+  { r: 0.14, a: 244, s: 2.5, d: 2.2 },
+  // 中圈（贴近中环）
+  { r: 0.23, a: 64, s: 2.5, d: 0.4 },
+  { r: 0.23, a: 172, s: 2, d: 1.5 },
+  { r: 0.23, a: 296, s: 3, d: 2.6 },
+  // 外圈（外环内侧，避免与外环虚线重叠）
+  { r: 0.30, a: 8, s: 2, d: 0.8 },
+  { r: 0.30, a: 100, s: 3, d: 1.9 },
+  { r: 0.30, a: 208, s: 2.5, d: 3.0 },
+  { r: 0.30, a: 324, s: 2, d: 0.2 },
 ]
 
 /** 轨道环（相对轨道区的直径百分比），转速与方向各不相同。 */
 const ORBIT_RINGS = [
   { size: '34%', spin: 'animate-ring-spin-slow' },
-  { size: '56%', spin: 'animate-ring-spin-slower' },
-  { size: '80%', spin: 'animate-ring-spin-slowest' },
+  { size: '50%', spin: 'animate-ring-spin-slower' },
+  { size: '66%', spin: 'animate-ring-spin-slowest' },
 ] as const
 
 /**
@@ -96,7 +102,7 @@ export default function HeroOrbit() {
         {/* ── 第二行：正方形轨道区（圆环与节点共用同一圆心） ── */}
         <div className="relative mx-auto mt-4 aspect-square w-full max-w-[22rem]">
           {/* 装饰层：旋转轨道环与粒子（仅视觉） */}
-          <div className="absolute inset-[9%]" aria-hidden="true">
+          <div className="absolute inset-0" aria-hidden="true">
             {ORBIT_RINGS.map((ring) => (
               <div
                 key={ring.size}
