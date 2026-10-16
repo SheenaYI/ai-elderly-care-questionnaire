@@ -1,0 +1,41 @@
+# Netlify 部署配置
+#
+# ✅ 应用已位于**仓库根目录**（package.json / index.html / vite.config.ts 都在根上），
+#    因此 Netlify 的默认设置就能正确构建：**不需要设置 Base directory**。
+#
+#    只需确认（通常默认就是）：
+#      Base directory   : （留空）
+#      Build command    : npm run build
+#      Publish directory: dist
+#
+# 路由规则（API 转发 + SPA 回退）统一放在 `public/_redirects`：
+# 该文件会被 Vite 复制到 publish 目录（dist/_redirects），Netlify 一定会读取，
+# 不受 Base directory 配置影响。把规则集中在一处，避免两个文件各说各话。
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Serverless Functions 目录。
+# Netlify 用 esbuild 打包，会跟随 import 到本目录之外的 `api/` 与 `src/`，
+# 因此业务逻辑只有一份实现（api/ 下那两个文件）。
+# 以 `_` 开头的目录（_lib）不会被作为函数入口暴露。
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Cache-Control = "no-store"

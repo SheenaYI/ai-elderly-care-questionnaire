@@ -138,16 +138,22 @@ ExperimentalWarning: localStorage is not available because --localstorage-file w
 实际目录结构（不含 `node_modules/`、`.npm-cache/`、`dist/`）：
 
 ```text
-ai-elderly-care-questionnaire/
+<仓库根目录>/                     # 应用已在仓库根目录，Netlify 无需设置 Base directory
 ├── api/                         # 服务端接口（Vercel Serverless Functions，自动识别）
 │   ├── submit-survey.ts         #   POST /api/submit-survey — 问卷的唯一写入通道
 │   ├── admin/export.ts          #   GET  /api/admin/export — 需登录 + 白名单的 CSV 导出
 │   └── _lib/                    #   服务端共享代码预留目录（以 _ 开头，不暴露为路由）
+├── netlify/                     # Netlify 平台适配（业务逻辑仍在 api/，此处只是薄封装）
+│   └── functions/
+│       ├── _lib/adapter.ts     #   Request → Vercel 风格 req/res → Response
+│       ├── submit-survey.ts    #   包一层 api/submit-survey
+│       └── admin-export.ts     #   包一层 api/admin/export
 ├── docs/                        # 项目文档
 │   ├── SETUP.md                 #   本文件
 │   ├── DATA_DICTIONARY.md       #   数据字典
 │   ├── DEPLOYMENT.md            #   部署指南
-│   └── RESEARCH_NOTES.md        #   研究设计审查（与 V1.0 原文对照的核对记录）
+│   ├── RESEARCH_NOTES.md        #   研究设计审查（与 V1.0 原文对照的核对记录）
+│   └── source/                  #   V1.0 问卷原始文件（.docx 及其文本转录）
 ├── public/                      # 直接拷贝到产物根目录的静态资源
 │   └── videos/                  #   模拟事件视频（fall-demo.mp4，缺失时降级为占位）
 ├── src/
@@ -155,7 +161,8 @@ ai-elderly-care-questionnaire/
 │   │   ├── router.tsx           #   路由表（/、/experience、/about、/privacy、/questionnaire、/admin）
 │   │   └── store.ts             #   Zustand 问卷状态 + 草稿持久化 + 随机化稳定性
 │   ├── components/              # 与业务无关的通用组件
-│   │   ├── layout/              #   AppShell、SiteNav（右侧导航）、SiteFooter、PageHeader、PageContainer、ScrollToTop
+│   │   ├── layout/              #   AppShell、SiteNav（桌面左侧导航 / 移动端顶部抽屉）、SiteFooter、PageHeader、PageContainer、ScrollToTop
+│   │   ├── home/                #   HeroOrbit：首页主视觉（居家养老 + 三个研究维度 + 粒子环绕）
 │   │   └── ui/                  #   Button、Card、Badge、ProgressBar、PendingField
 │   ├── data/                    # 研究内容的唯一来源（页面不得硬编码题目文本）
 │   │   ├── profiles.ts          #   属性定义、C1–C8 配置、统一前提

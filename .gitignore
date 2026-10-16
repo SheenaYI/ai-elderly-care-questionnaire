@@ -1,42 +1,10 @@
-# dependencies
 node_modules/
-.pnpm-store/
-
-# build output
 dist/
-dist-ssr/
-build/
+.npm-cache/
 *.local
 
-# env — never commit real credentials
-.env
-.env.*
-!.env.example
-
-# logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-*.log
-
-# editor / OS
+# 旧 HTML 原型的本机备份（仅供研究团队留存参考，不属于本项目源码）
+# 复制到你本机其他位置后可以删除整个 work/ 目录
+work/legacy-prototype-backup/
 .DS_Store
-.idea/
-.vscode/*
-!.vscode/extensions.json
-*.swp
-
-# test / coverage
-coverage/
-.nyc_output/
-
-# local research data exports — must never be committed
-exports/
-*.csv
-!docs/**/*.csv
-data-export/
-participants*.json
-
-# npm cache created locally to work around a global cache permission issue
-.npm-cache/
+**/.DS_Store

@@ -285,35 +285,33 @@ Vite 在**构建时**把 `VITE_` 开头的变量内联进前端 JavaScript。
 | Functions directory | `api`（**必须显式配置**，见 3.3） |
 | Node version | 20（可通过 `NODE_VERSION` 环境变量或 `.nvmrc` 固定） |
 
-### ⚠️ 最常见的 Netlify 全站 404 原因：Base directory
+### Base directory：现在**不需要设置**（仓库已重排）
 
-**本仓库的根目录下没有 `package.json`** —— 应用位于子目录
-`work/ai-elderly-care-questionnaire/`。如果 Netlify 从仓库根构建：
+> 历史说明：早期版本把应用放在 `work/ai-elderly-care-questionnaire/` 子目录，
+> 而仓库根目录没有 `package.json`，因此必须手动设置 Base directory，否则
+> Netlify 从根构建会失败（`vite: command not found`）→ publish 目录为空 → 全站 404。
+>
+> **该问题已通过把应用提到仓库根目录解决。** 现在 `package.json`、`index.html`、
+> `vite.config.ts`、`netlify.toml` 都在仓库根目录，Netlify 的默认设置即可正确构建。
 
-1. 找不到 `package.json`，构建产物为空；
-2. `publish = "dist"` 指向不存在的目录；
-3. 于是**每一个路径**（包括首页 `/`）都返回 Netlify 自己的 "Page not found"。
-
-**正确配置（推荐在 Netlify UI 的 Site configuration → Build & deploy 里设置）：**
+**当前应有的设置（通常全为默认值，无需修改）：**
 
 | 设置项 | 值 |
 |---|---|
-| Base directory | `work/ai-elderly-care-questionnaire` |
+| Base directory | **（留空）** |
 | Build command | `npm run build` |
 | Publish directory | `dist` |
 
-`Base directory` 一旦设置，`Build command` 与 `Publish directory`
-都**以该目录为基准**（所以是 `dist`，不是 `work/ai-elderly-care-questionnaire/dist`），
-`netlify.toml` 也会从该目录读取。
+**为什么"留空"是对的**：`netlify/functions/` 与 `netlify.toml` 都在根目录，
+Netlify 在 Base directory 内查找 Functions，根目录正是它要找的地方。
 
-如果不想设置 Base directory，可改用仓库根构建，此时把 `netlify.toml` 的
-`[build]` 换成：
+**如果 Netlify 站点是之前建的**，可能残留了旧的 Base directory 设置
+（指向已不存在的 `work/ai-elderly-care-questionnaire`）。请把它**清空**，
+否则构建会直接失败。改完执行 **Deploys → Trigger deploy → Clear cache and deploy site**。
 
-```toml
-[build]
-  command = "cd work/ai-elderly-care-questionnaire && npm ci && npm run build"
-  publish = "work/ai-elderly-care-questionnaire/dist"
-```
+判断构建是否成功的两个标志：
+1. 日志中出现 `✓ built in ...`；
+2. 站点打开后是「当 AI 走进养老生活」首页，而不是 Netlify 的 "Page not found"。
 
 ### SPA 回退：为什么逐条列路由而不是 `/*` 兜底
 
