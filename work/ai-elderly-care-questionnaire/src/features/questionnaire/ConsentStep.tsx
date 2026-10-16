@@ -13,18 +13,6 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
-import PendingField from '@/components/ui/PendingField'
-import {
-  DATA_ACCESS_SCOPE,
-  DATA_RETENTION,
-  ETHICS_APPROVAL,
-  RESEARCH_CONTACT,
-  RESEARCH_CONTACT_EMAIL,
-  RESEARCH_INSTITUTION,
-  RESEARCH_LEAD,
-  WITHDRAWAL_PROCEDURE,
-  ESTIMATED_DURATION,
-} from '@/data/placeholders'
 import {
   OPENING_STATEMENT,
   Q1_CONSENT,
@@ -60,7 +48,7 @@ function ConsentSection({
   index: string
   icon: typeof ShieldCheck
   title: string
-  children: React.ReactNode
+  children?: React.ReactNode
 }) {
   return (
     <section className="border-t border-sage-200 pt-5 first:border-t-0 first:pt-0">
@@ -202,19 +190,16 @@ export default function ConsentStep({
               了解人们对 AI 养老监测系统不同信息共享与监测配置的偏好，
               以及对安全、隐私和老人自主性的感受。
               本研究为大学生创新创业训练计划科研项目，结果仅用于学术研究。
+              承担本研究的单位与负责人信息将在正式发放前补充。
             </p>
-            <div className="flex flex-col gap-2 pt-1">
-              <PendingField field={RESEARCH_INSTITUTION} />
-              <PendingField field={RESEARCH_LEAD} />
-            </div>
           </ConsentSection>
 
           <ConsentSection index="02" icon={UserCog} title="自愿参与与预计用时">
             <p>
               参与完全自愿。您可以在任何时候关闭页面退出，无需说明理由，
               也不会受到任何不利影响。未提交的内容只保存在您自己的浏览器中。
+              预计填写时间将在研究团队完成内部试填后公示。
             </p>
-            <PendingField field={ESTIMATED_DURATION} />
           </ConsentSection>
 
           <ConsentSection index="03" icon={Database} title="数据使用说明">
@@ -229,27 +214,24 @@ export default function ConsentStep({
               网站中的 AI 监测属于<strong className="font-semibold text-forest-800">模拟</strong>
               ，不会开启您的摄像头，不会进行真实养老监控，也不会收集您的影像。
               匿名参与者不能查看他人的任何回答。
+              数据保存期限与可访问数据的人员范围将在正式发放前补充确认。
             </p>
-            <div className="flex flex-col gap-2 pt-1">
-              <PendingField field={DATA_RETENTION} />
-              <PendingField field={DATA_ACCESS_SCOPE} />
-            </div>
           </ConsentSection>
 
           <ConsentSection index="05" icon={CircleHelp} title="研究联系人">
-            <div className="flex flex-col gap-2">
-              <PendingField field={RESEARCH_CONTACT} />
-              <PendingField field={RESEARCH_CONTACT_EMAIL} />
-              <PendingField field={ETHICS_APPROVAL} />
-            </div>
+            <p>
+              如对本研究有任何疑问，或希望了解研究结果、申请撤回已提交的问卷，
+              可通过研究团队在正式发放前公布的联系方式与我们联系。
+              由于问卷为匿名保存，我们无法通过姓名定位您的问卷。
+            </p>
           </ConsentSection>
 
           <ConsentSection index="06" icon={LogOut} title="退出机制">
             <p>
-              您可随时退出。若需撤回已提交的问卷或申请删除数据，可通过以下方式联系研究团队。
+              您可随时退出。若需撤回已提交的问卷或申请删除数据，可联系研究团队。
+              具体的联系方式与申请方式将在正式发放前补充确认。
               由于问卷为匿名保存，我们无法通过姓名定位您的问卷。
             </p>
-            <PendingField field={WITHDRAWAL_PROCEDURE} />
           </ConsentSection>
         </div>
       </Card>

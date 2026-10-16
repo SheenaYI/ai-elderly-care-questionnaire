@@ -13,11 +13,10 @@ import {
   TriangleAlert,
 } from 'lucide-react'
 import PageContainer from '@/components/layout/PageContainer'
+import HeroOrbit from '@/components/home/HeroOrbit'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import { ButtonLink } from '@/components/ui/Button'
-import PendingField from '@/components/ui/PendingField'
-import { ESTIMATED_DURATION } from '@/data/placeholders'
 import { STUDY_CODE, STUDY_TITLE } from '@/data/questionnaire'
 import { ATTRIBUTE_DEFINITIONS, UNIFIED_PREMISES } from '@/data/profiles'
 import { dataModeNotice } from '@/lib/config'
@@ -51,75 +50,66 @@ export default function HomePage() {
   return (
     <PageContainer size="wide">
       {/* ── 主视觉与主行动 ─────────────────────────────────── */}
-      <section className="overflow-hidden rounded-feature border border-forest-700 bg-forest-700 text-white shadow-card">
-        <div className="px-6 py-10 sm:px-10 sm:py-14">
-          <p className="font-mono text-[0.72rem] uppercase tracking-[0.2em] text-forest-100/80">
-            {STUDY_CODE}
-          </p>
-
-          <h1 className="mt-4 max-w-2xl text-[2rem] font-semibold leading-[1.25] sm:text-[2.75rem]">
-            当 AI 走进养老生活
-          </h1>
-
-          <p className="mt-5 max-w-2xl text-[1.15rem] leading-9 text-forest-50 sm:text-[1.3rem]">
-            安全、隐私与自主性之间，
-            <br className="hidden sm:block" />
-            您会如何选择？
-          </p>
-
-          <div className="mt-8 max-w-2xl space-y-3.5 text-[1rem] leading-8 text-forest-50/95">
-            <p>
-              本研究希望了解不同人群对 AI 养老监测系统信息共享与监测方式的偏好。
+      <section className="overflow-hidden rounded-feature border border-sage-200 bg-gradient-to-br from-cream-100 via-cream-50 to-sage-50 shadow-card">
+        <div className="grid items-center gap-8 px-6 py-10 sm:px-10 sm:py-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-10">
+          {/* 文案与主行动 */}
+          <div className="min-w-0">
+            <p className="font-mono text-[0.72rem] uppercase tracking-[0.2em] text-sage-600">
+              {STUDY_CODE}
             </p>
-            <p>
-              通过模拟不同系统配置，探索人们在安全保障、个人隐私和自主生活之间的权衡。
+
+            <h1 className="mt-4 text-[2rem] font-semibold leading-[1.25] text-forest-800 sm:text-[2.5rem]">
+              当 AI 走进养老生活
+            </h1>
+
+            <p className="mt-5 text-[1.15rem] leading-9 text-forest-700 sm:text-[1.3rem]">
+              安全、隐私与自主性之间，
+              <br className="hidden sm:block" />
+              您会如何选择？
             </p>
+
+            <div className="mt-7 space-y-3 text-[1rem] leading-8 text-sage-700">
+              <p>本研究希望了解不同人群对 AI 养老监测系统信息共享与监测方式的偏好。</p>
+              <p>通过模拟不同系统配置，探索人们在安全保障、个人隐私和自主生活之间的权衡。</p>
+            </div>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <ButtonLink to="/questionnaire/consent" size="lg" className="sm:min-w-56">
+                开始参与研究
+                <ArrowRight className="h-5 w-5" aria-hidden="true" />
+              </ButtonLink>
+
+              <Link
+                to="/experience"
+                className="inline-flex min-h-13 items-center justify-center gap-2 rounded-panel border border-forest-700 bg-white/70 px-6 text-[1rem] font-semibold text-forest-800 transition hover:bg-white"
+              >
+                <MonitorPlay className="h-5 w-5" aria-hidden="true" />
+                先看看情景体验
+              </Link>
+            </div>
           </div>
 
-          <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <ButtonLink
-              to="/questionnaire/consent"
-              size="lg"
-              variant="secondary"
-              className="border-white bg-white text-forest-800 hover:bg-forest-50 sm:min-w-56"
-            >
-              开始参与研究
-              <ArrowRight className="h-5 w-5" aria-hidden="true" />
-            </ButtonLink>
-
-            <Link
-              to="/experience"
-              className="inline-flex min-h-13 items-center justify-center gap-2 rounded-panel border border-white/35 px-6 text-[1rem] font-semibold text-white transition hover:bg-white/10"
-            >
-              <MonitorPlay className="h-5 w-5" aria-hidden="true" />
-              先看看情景体验
-            </Link>
+          {/* 主视觉：居家养老与三个研究维度 */}
+          <div className="flex min-w-0 justify-center lg:justify-end">
+            <HeroOrbit />
           </div>
         </div>
 
         {/* 参与原则摘要 */}
-        <div className="grid gap-px border-t border-white/15 bg-white/10 sm:grid-cols-3">
+        <div className="grid gap-px border-t border-sage-200 bg-sage-200 sm:grid-cols-3">
           {[
-            {
-              icon: Clock3,
-              label: '预计填写时间',
-              value: <PendingField field={ESTIMATED_DURATION} className="text-white" />,
-            },
-            { icon: ShieldCheck, label: '研究用途', value: <span>仅用于学术研究</span> },
-            {
-              icon: RotateCcw,
-              label: '参与原则',
-              value: <span>自愿参与，可随时退出</span>,
-            },
+            { icon: Clock3, label: '预计填写时间', value: '由研究团队试填后确认' },
+            { icon: ShieldCheck, label: '研究用途', value: '仅用于学术研究' },
+            { icon: RotateCcw, label: '参与原则', value: '自愿参与，可随时退出' },
           ].map((item) => (
-            <div key={item.label} className="bg-forest-700/95 px-5 py-4">
-              <p className="flex items-center gap-2 text-[0.8rem] font-medium text-forest-100/85">
-                <item.icon className="h-4 w-4" aria-hidden="true" />
+            <div key={item.label} className="bg-cream-50 px-5 py-4">
+              <p className="flex items-center gap-2 text-[0.8rem] font-medium text-sage-700">
+                <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                 {item.label}
               </p>
-              <div className="mt-1.5 text-[0.95rem] font-semibold leading-relaxed text-white">
+              <p className="mt-1.5 text-[0.95rem] font-semibold leading-relaxed text-forest-800">
                 {item.value}
-              </div>
+              </p>
             </div>
           ))}
         </div>

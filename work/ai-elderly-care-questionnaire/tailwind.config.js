@@ -127,6 +127,18 @@ export default {
           from: { transform: 'translateY(14px)', opacity: '0' },
           to: { transform: 'translateY(0)', opacity: '1' },
         },
+        ringSpin: {
+          from: { transform: 'rotate(0deg)' },
+          to: { transform: 'rotate(360deg)' },
+        },
+        particle: {
+          '0%, 100%': { opacity: '0.18', transform: 'scale(0.7)' },
+          '50%': { opacity: '0.85', transform: 'scale(1)' },
+        },
+        slideInLeft: {
+          from: { transform: 'translateX(-100%)', opacity: '0.4' },
+          to: { transform: 'translateX(0)', opacity: '1' },
+        },
         fadeIn: {
           from: { opacity: '0' },
           to: { opacity: '1' },
@@ -145,6 +157,12 @@ export default {
         breathe: 'breathe 2.4s ease-in-out infinite',
         alert: 'alertRing 1.6s ease-in-out infinite',
         'slide-up': 'slideUp 260ms cubic-bezier(0.16, 1, 0.3, 1) both',
+        'slide-in-left': 'slideInLeft 240ms cubic-bezier(0.16, 1, 0.3, 1) both',
+        // 首页轨道环：转速与方向各不相同，形成缓慢的"粒子环绕"感
+        'ring-spin-slow': 'ringSpin 96s linear infinite',
+        'ring-spin-slower': 'ringSpin 150s linear infinite reverse',
+        'ring-spin-slowest': 'ringSpin 210s linear infinite',
+        particle: 'particle 3.6s ease-in-out infinite',
         'fade-in': 'fadeIn 220ms ease-out both',
         scan: 'scan 3.6s ease-in-out infinite',
         'progress-grow': 'progressGrow 400ms cubic-bezier(0.16, 1, 0.3, 1) both',

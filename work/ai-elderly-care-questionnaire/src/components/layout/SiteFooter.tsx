@@ -39,12 +39,9 @@ export default function SiteFooter() {
 
         {ALL_CONFIGURABLE_FIELDS.some((f) => f.pending) && (
           <p className="mt-6 rounded-panel border border-champagne-200 bg-champagne-50 px-3.5 py-2.5 text-[0.82rem] leading-relaxed text-champagne-800">
-            本页部分信息（如研究联系人、数据保存期限、伦理审批编号）仍待研究团队补充确认，
-            已在相应位置以
-            <code className="mx-1 rounded bg-white px-1.5 py-0.5 font-mono text-[0.78rem] text-champagne-800">
-              [待填写：…]
-            </code>
-            标注，未作编造。
+            本页涉及的单位名称、研究负责人、研究联系人、伦理审批编号、数据保存期限与
+            可访问数据的人员范围等信息，仍待研究团队补充确认，因此
+            <strong className="font-semibold">暂未在页面展示，也未作编造</strong>。
           </p>
         )}
       </div>

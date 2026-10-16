@@ -83,11 +83,26 @@ describe('公共页面渲染', () => {
     expect(html).toContain('自愿参与，可随时退出')
   })
 
-  it('首页显示"预计填写时间"占位字段（不编造时长）', async () => {
+  it('首页"预计填写时间"不编造时长，且不展示占位字段', async () => {
     const { default: HomePage } = await import('@/pages/HomePage')
     const html = await renderPage(createElement(HomePage))
+    // 仍然标明这一项的存在与状态
     expect(html).toContain('预计填写时间')
-    expect(html).toContain('[待填写：预计填写时间]')
+    // 研究团队指定：暂不在页面显示 [待填写：…] 名录，只保留说明
+    expect(html).not.toContain('[待填写：')
+    expect(html).toContain('由研究团队试填后确认')
+  })
+
+  it('首页渲染主视觉（居家养老 + 三个研究维度）并提供等价文字说明', async () => {
+    const { default: HomePage } = await import('@/pages/HomePage')
+    const html = await renderPage(createElement(HomePage))
+    expect(html).toContain('居家养老')
+    expect(html).toContain('安全感')
+    expect(html).toContain('隐私担忧')
+    expect(html).toContain('自主感')
+    expect(html).toContain('家人陪伴')
+    // 图形为装饰，必须有不依赖视觉的等价说明
+    expect(html).toContain('三者权重相同')
   })
 
   it('首页在未配置 Supabase 时显示 Demo 模式提示', async () => {
@@ -135,14 +150,25 @@ describe('公共页面渲染', () => {
       expect(html, `缺少章节：${section}`).toContain(section)
     }
     expect(html).toContain('不会开启您的摄像头')
-    expect(html).toContain('[待填写：研究联系人]')
-    expect(html).toContain('[待填写：数据保存期限]')
   })
 
-  it('隐私页明确说明不编造未确定信息', async () => {
+  it('隐私页说明未确定信息暂不展示且未编造（不显示占位名录）', async () => {
     const { default: PrivacyPage } = await import('@/pages/PrivacyPage')
     const html = await renderPage(createElement(PrivacyPage))
     expect(html).toContain('未作任何编造')
+    // 研究团队指定：暂不显示 [待填写：…] 名录
+    expect(html).not.toContain('[待填写：')
+    // 但仍需明确告知这些信息待补充
+    expect(html).toContain('待研究团队补充确认')
+  })
+
+  it('参与者可见页面均不展示待填写占位名录', async () => {
+    const pages = ['HomePage', 'PrivacyPage', 'AboutPage', 'ExperiencePage'] as const
+    for (const name of pages) {
+      const mod = (await import(`@/pages/${name}`)) as { default: React.ComponentType }
+      const html = await renderPage(createElement(mod.default))
+      expect(html, `${name} 不应出现 [待填写：`).not.toContain('[待填写：')
+    }
   })
 
   it('404 页面渲染成功', async () => {

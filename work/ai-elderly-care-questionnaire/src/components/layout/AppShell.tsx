@@ -5,8 +5,11 @@ import SiteFooter from './SiteFooter'
 /**
  * 网站外壳。
  *
- * 桌面端：左侧主要内容区 + 右侧固定导航栏。
- * 移动端：右侧导航折叠为顶部菜单，主内容占满整宽。
+ * 桌面端（lg 及以上）：**左侧固定导航栏** + 右侧主要内容区。
+ * 移动端：导航折叠为顶部一条窄品牌栏（含"菜单"按钮），主内容占满整宽。
+ *
+ * 说明：外层使用普通的 `flex`（不是 `flex-row-reverse`），导航作为第一个
+ * 子元素自然落在左侧；移动端导航为 `static` 顶部栏，因此不会挤压内容宽度。
  */
 export default function AppShell() {
   const location = useLocation()
@@ -30,8 +33,8 @@ export default function AppShell() {
         跳到主要内容
       </a>
 
-      <div className="mx-auto flex w-full max-w-content flex-row-reverse">
-        {/* 右侧固定导航（桌面端） */}
+      <div className="mx-auto flex w-full max-w-content flex-col lg:flex-row">
+        {/* 左侧固定导航（桌面端）／顶部折叠菜单（移动端） */}
         <SiteNav />
 
         {/* 主内容区 */}

@@ -14,21 +14,8 @@ import {
 import PageContainer from '@/components/layout/PageContainer'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
-import PendingField from '@/components/ui/PendingField'
 import { ButtonLink } from '@/components/ui/Button'
-import type { ConfigurableField } from '@/data/placeholders'
-import {
-  DATA_ACCESS_SCOPE,
-  DATA_RETENTION,
-  ESTIMATED_DURATION,
-  ETHICS_APPROVAL,
-  RESEARCH_CONTACT,
-  RESEARCH_CONTACT_EMAIL,
-  RESEARCH_INSTITUTION,
-  RESEARCH_LEAD,
-  WITHDRAWAL_PROCEDURE,
-  pendingFields,
-} from '@/data/placeholders'
+import { pendingFields } from '@/data/placeholders'
 import { dataModeNotice } from '@/lib/config'
 
 /**
@@ -68,16 +55,6 @@ function Section({
   )
 }
 
-/** 待填写信息的行内展示。 */
-function Todo({ field }: { field: ConfigurableField }) {
-  return (
-    <span className="inline-flex flex-wrap items-baseline gap-1">
-      <span className="font-medium text-forest-900">{field.label}：</span>
-      <PendingField field={field} inline />
-    </span>
-  )
-}
-
 export default function PrivacyPage() {
   const modeNotice = dataModeNotice()
   const pending = pendingFields()
@@ -106,11 +83,9 @@ export default function PrivacyPage() {
               本页仍有 {pending.length} 项信息待研究团队补充确认
             </p>
             <p className="mt-1.5 text-[0.92rem] leading-relaxed text-champagne-800">
-              以下标注为
-              <code className="mx-1 rounded bg-white/70 px-1.5 py-0.5 font-mono text-[0.85rem]">
-                [待填写：…]
-              </code>
-              的内容尚未由研究团队确定，本站<strong className="font-semibold">未作任何编造</strong>。
+              本页涉及的单位、负责人、联系人、伦理审批编号、数据保存期限、可访问数据的
+              人员范围与退出方式等具体信息，尚未由研究团队最终确定，因此
+              <strong className="font-semibold">未在本页展示，也未作任何编造</strong>。
               正式上线前必须由研究团队补充并确认完整隐私告知内容。
             </p>
           </div>
@@ -127,10 +102,6 @@ export default function PrivacyPage() {
           <p>
             研究结果仅用于学术研究与学术报告，不用于任何商业用途，也不会用于评价任何个人或机构。
           </p>
-          <div className="flex flex-col gap-3">
-            <Todo field={RESEARCH_INSTITUTION} />
-            <Todo field={RESEARCH_LEAD} />
-          </div>
         </Section>
 
         {/* 参与方式 */}
@@ -145,7 +116,6 @@ export default function PrivacyPage() {
               不收集姓名、身份证号、联系方式、住址或任何可直接识别个人身份的信息。
             </strong>
           </p>
-          <Todo field={ESTIMATED_DURATION} />
         </Section>
 
         {/* 数据收集范围 */}
@@ -193,10 +163,6 @@ export default function PrivacyPage() {
 
         {/* 保存期限与访问权限 */}
         <Section id="retention" icon={LockKeyhole} index="05" title="数据保存期限与访问权限">
-          <div className="flex flex-col gap-3">
-            <Todo field={DATA_RETENTION} />
-            <Todo field={DATA_ACCESS_SCOPE} />
-          </div>
           <p className="pt-2">
             数据以匿名编号（participant_id）保存。
             <strong className="font-semibold text-forest-800">
@@ -216,16 +182,10 @@ export default function PrivacyPage() {
             如需撤回已提交的问卷或申请删除数据，可通过以下方式联系研究团队。
             为保护匿名性，我们无法通过姓名定位您的问卷，请尽量提供提交时间等信息以便处理。
           </p>
-          <Todo field={WITHDRAWAL_PROCEDURE} />
         </Section>
 
         {/* 研究联系人 */}
         <Section id="contact" icon={CircleHelp} index="07" title="研究联系人">
-          <div className="flex flex-col gap-3">
-            <Todo field={RESEARCH_CONTACT} />
-            <Todo field={RESEARCH_CONTACT_EMAIL} />
-            <Todo field={ETHICS_APPROVAL} />
-          </div>
           <p className="pt-2">
             如对本研究有任何疑问，或希望了解研究结果，欢迎联系研究团队。
           </p>

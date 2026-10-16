@@ -132,8 +132,10 @@ export function DonePage({
           <p className="flex items-start gap-2.5 text-[0.85rem] leading-relaxed text-sage-600">
             <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
             <span>
-              本问卷的隐私告知中仍有待研究团队补充确认的信息（如数据保存期限、
-              研究联系人）。正式上线前将由研究团队完成补充。
+              本问卷隐私告知中的部分信息（单位名称、研究负责人、研究联系人、
+              伦理审批编号、数据保存期限、可访问数据的人员范围与退出方式）
+              仍待研究团队补充确认，因此暂未展示、也未作编造。
+              正式上线前将由研究团队完成补充。
             </span>
           </p>
         </div>

@@ -1,22 +1,28 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import {
+  BookOpen,
   ClipboardList,
   Menu,
   MonitorPlay,
   ShieldCheck,
   X,
-  BookOpen,
 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { STUDY_TITLE } from '@/data/questionnaire'
 
 /**
- * 右侧固定导航栏。
+ * 网站导航。
  *
- * - 桌面端：固定在右侧，显示网站标识、编号导航、当前项高亮、hover 动画。
- * - 移动端：折叠为顶部菜单按钮 + 抽屉，避免占用主要内容空间。
- * - 键盘可达：Esc 关闭、焦点进入抽屉、Tab 顺序正常。
+ * 布局策略：
+ *   - **桌面端（lg 及以上）**：固定在**左侧**的纵向导航栏，常驻显示，
+ *     页面内容在右侧。当前项高亮，带轻微 hover 动画。
+ *   - **移动端（小于 lg）**：折叠为**顶部**一条窄品牌栏 + "菜单"按钮，
+ *     点击后从左侧滑出抽屉。移动端不常驻显示导航，避免占用主要内容空间，
+ *     也避免出现"菜单跑到页面中间"之类的排版问题。
+ *
+ * 可访问性：Esc 关闭抽屉、打开时焦点进入抽屉、Tab 焦点循环、
+ * 关闭后焦点回到触发按钮、`aria-expanded` / `aria-controls` 齐备。
  */
 
 export interface NavItem {
@@ -59,13 +65,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   },
 ] as const
 
-function NavLinkItem({
-  item,
-  onNavigate,
-}: {
-  item: NavItem
-  onNavigate?: () => void
-}) {
+function NavLinkItem({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
   const { Icon } = item
   return (
     <NavLink
@@ -75,9 +75,7 @@ function NavLinkItem({
       className={({ isActive }) =>
         cn(
           'group flex min-h-[3.25rem] items-center gap-3 rounded-panel px-3 py-2.5 transition-colors duration-200',
-          isActive
-            ? 'bg-forest-700 text-white shadow-selected'
-            : 'text-forest-800 hover:bg-forest-50',
+          isActive ? 'bg-forest-700 text-white shadow-selected' : 'text-forest-800 hover:bg-forest-50',
         )
       }
     >
@@ -86,9 +84,7 @@ function NavLinkItem({
           <span
             className={cn(
               'flex h-9 w-9 shrink-0 items-center justify-center rounded-control transition-colors duration-200',
-              isActive
-                ? 'bg-white/15 text-white'
-                : 'bg-sage-100 text-forest-700 group-hover:bg-white',
+              isActive ? 'bg-white/15 text-white' : 'bg-sage-100 text-forest-700 group-hover:bg-white',
             )}
             aria-hidden="true"
           >
@@ -127,7 +123,7 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
   return (
     <Link
       to="/"
-      className="flex items-center gap-3 rounded-panel p-1 transition-colors hover:bg-forest-50"
+      className="flex min-w-0 items-center gap-3 rounded-panel p-1 transition-colors hover:bg-forest-50"
       aria-label={`返回首页 — ${STUDY_TITLE}`}
     >
       <span
@@ -214,9 +210,9 @@ export default function SiteNav() {
 
   return (
     <>
-      {/* ── 桌面端：右侧固定导航 ─────────────────────────────── */}
+      {/* ── 桌面端：左侧固定导航 ─────────────────────────────── */}
       <aside
-        className="sticky top-0 hidden h-screen w-[17.5rem] shrink-0 flex-col border-l border-sage-200 bg-cream-100/85 px-4 py-7 backdrop-blur lg:flex xl:w-[19rem]"
+        className="sticky top-0 hidden h-screen w-[17rem] shrink-0 flex-col border-r border-sage-200 bg-cream-100/85 px-4 py-7 backdrop-blur lg:flex xl:w-[18.5rem]"
         aria-label="网站导航"
       >
         <BrandMark />
@@ -239,8 +235,8 @@ export default function SiteNav() {
         </div>
       </aside>
 
-      {/* ── 首页顶部品牌条（仅移动端） ────────────────────────── */}
-      <div className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-sage-200 bg-cream-100/95 px-4 py-3 backdrop-blur lg:hidden">
+      {/* ── 移动端：顶部窄品牌栏（lg 以下显示） ───────────────── */}
+      <div className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-sage-200 bg-cream-100/95 px-4 py-2.5 backdrop-blur lg:hidden">
         <BrandMark />
         <button
           ref={toggleRef}
@@ -248,14 +244,14 @@ export default function SiteNav() {
           onClick={() => setIsOpen(true)}
           aria-expanded={isOpen}
           aria-controls={drawerId}
-          className="inline-flex min-h-11 items-center gap-2 rounded-panel border border-forest-700 px-3.5 text-[0.95rem] font-semibold text-forest-800 transition-colors hover:bg-forest-50"
+          className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-panel border border-forest-700 px-3.5 text-[0.95rem] font-semibold text-forest-800 transition-colors hover:bg-forest-50"
         >
           <Menu className="h-5 w-5" aria-hidden="true" />
           菜单
         </button>
       </div>
 
-      {/* ── 移动端抽屉 ───────────────────────────────────────── */}
+      {/* ── 移动端抽屉（自左侧滑出） ─────────────────────────── */}
       {isOpen && (
         <div className="fixed inset-0 z-50 lg:hidden" role="presentation">
           <div
@@ -266,7 +262,7 @@ export default function SiteNav() {
           <div
             ref={drawerRef}
             id={drawerId}
-            className="absolute inset-y-0 right-0 flex w-[min(21rem,88vw)] flex-col bg-cream-100 shadow-modal animate-slide-up"
+            className="absolute inset-y-0 left-0 flex w-[min(20rem,86vw)] flex-col bg-cream-100 shadow-modal animate-slide-in-left"
             role="dialog"
             aria-modal="true"
             aria-label="网站导航"
