@@ -229,6 +229,17 @@ function pruneBuckets(now: number): void {
   }
 }
 
+/**
+ * 仅用于自动化测试：清空限流桶。
+ *
+ * 限流状态是模块级 Map，会在同一进程内的多个测试用例之间共享。
+ * 没有这个导出，一个用例把某个 IP 打到 429 之后，后续用例就会受污染。
+ * 生产代码不调用它。
+ */
+export function __resetRateLimiterForTests(): void {
+  buckets.clear()
+}
+
 /** 取一个令牌；返回是否放行以及建议的重试等待秒数。 */
 function consumeToken(key: string): { allowed: boolean; retryAfterSeconds: number } {
   const now = Date.now()

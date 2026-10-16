@@ -1,7 +1,10 @@
 # 部署指南（DEPLOYMENT）
 
 本文档说明如何把「智能养老AI监测系统配置偏好与采纳意愿调查」问卷平台部署到
-**Vercel（主要方案）** 与 **Netlify（备选方案）**。
+**Netlify（本项目实际采用）** 与 **Vercel（同样可用，代码已兼容）**。
+
+> 本项目已确定使用 **Netlify**，因此第 3 节是主路径；第 1 节的 Vercel 说明保留，
+> 以便日后切换（两个平台的业务代码完全共用，无需改动）。
 
 相关文档：
 
@@ -174,8 +177,9 @@ Vite 在**构建时**把 `VITE_` 开头的变量内联进前端 JavaScript。
 > 注意：请**不要**同时使用 `routes` 与 `rewrites` / `redirects` / `headers`，Vercel 不允许混用。
 > 本仓库只使用 `rewrites` + `headers`。
 
-> Netlify 备选方案见 `netlify.toml`（已提供 SPA 回退与安全响应头）；但 Netlify 需要额外的
-> 函数适配层，详见 3.2 节。
+> 若改用 Netlify：无需任何业务代码改动。`netlify/functions/` 已提供适配层，
+> `netlify.toml` 与 `public/_redirects` 已提供 API 转发与 SPA 回退，
+> 详见第 3 节（含 Base directory 这个最容易踩的坑）。
 
 
 
@@ -268,7 +272,7 @@ Vite 在**构建时**把 `VITE_` 开头的变量内联进前端 JavaScript。
 
 ---
 
-## 3. 备选方案：部署到 Netlify
+## 3. 部署到 Netlify（本项目采用）
 
 ### 3.1 连接仓库与构建设置
 
@@ -393,15 +397,35 @@ Vite 在**构建时**把 `VITE_` 开头的变量内联进前端 JavaScript。
 **函数签名差异（Netlify 需要额外工作量）：** 本仓库的两个接口文件都是
 **Vercel / Node HTTP 风格**——`export default async function handler(req, res)`，
 使用 `req.method` / `req.headers` / `req.body`（已自行声明最小类型，因为项目未安装
-`@vercel/node`）。Netlify Functions 的签名不同（v2 为 Web API 风格
-`(Request) => Response`，旧版为 `handler(event, context)`）。
-因此 `api/submit-survey.ts` 与 `api/admin/export.ts` **不能原样复用**，
-在 Netlify 上部署需要一个薄适配层（把 `event` 映射为 `req`、把返回的
-`{ statusCode, headers, body }` 映射为 Netlify 响应）。
+`@vercel/node`）。Netlify Functions 用的是 Web 标准的 `Request` / `Response`，
+签名不同，因此 `api/` 下两个文件不能直接作为 Netlify 函数入口。
 
-> 说明：该适配层**当前不存在**（仓库中没有 `netlify/functions/` 目录或适配文件），
-> 属于在 Netlify 部署时**计划中**的工作。**Vercel 是主要方案**，
-> Netlify 仅在 Vercel 不可用时使用；选择 Netlify 时请把适配层作为一项独立任务评估。
+**解决方案（已实现）：薄适配层，业务逻辑仍然只有一份。**
+
+```
+netlify/functions/
+  _lib/adapter.ts        # Request → Vercel 风格 req/res → Response
+  submit-survey.ts       # import ../../api/submit-survey 后包一层
+  admin-export.ts        # import ../../api/admin/export   后包一层
+```
+
+- 以 `_` 开头的目录不会被 Netlify 当作函数入口暴露，因此 `_lib/` 是安全的放置位置。
+- Netlify 使用 esbuild 打包，会跟随 import 到 `netlify/functions/` **之外**的
+  `api/` 与 `src/`，所以校验、限流、版本检查、重复提交检查、CSV 生成全部复用原实现，
+  **不存在两套逻辑漂移的风险**。若日后改回 Vercel，删掉 `netlify/` 与
+  `_redirects` 里的 API 规则即可，业务代码零改动。
+- 适配层做了三件容易被忽略的事：
+  1. **请求体**：读取原始字节后交给 handler 自行解析（handler 同时支持
+     string / Buffer / 已解析对象），因此体积守卫读到的是真实字节数。
+  2. **客户端 IP**：优先取 Netlify 的 `context.ip`，其次
+     `x-nf-client-connection-ip`，再退到 `x-forwarded-for`，用于限流分桶。
+  3. **响应头规范化**：`Headers` 只接受 ISO-8859-1，而导出接口会返回含中文的
+     `Content-Disposition`；适配层把非 ASCII 字符替换掉，避免构造响应时抛
+     `TypeError` 导致导出直接失败（该行为有专门的测试覆盖）。
+
+**已验证**：`tests/netlifyAdapter.test.ts`（20 个用例）以 Netlify 的真实调用方式
+（`new Request(...)`）调用包装后的函数，断言真实状态码与响应头，覆盖
+405 / 503 / 429 / 413 / 400 / 401 / 403 / 204 以及请求体、查询参数、IP、头部规范化。
 
 ### 3.4 在 Netlify 添加环境变量
 

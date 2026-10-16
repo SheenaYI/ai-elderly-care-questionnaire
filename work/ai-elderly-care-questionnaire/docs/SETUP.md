@@ -76,7 +76,7 @@ npm install --cache "$PWD/.npm-cache"
   `window.scrollTo`、每个测试后清理 DOM 与 `localStorage`）
 - 匹配范围：`tests/**/*.test.ts`
 
-现有八个测试文件（当前共 188 个断言，全部通过）：
+现有九个测试文件（当前共 208 个断言，全部通过）：
 
 | 测试文件 | 覆盖内容 |
 |---|---|
@@ -86,8 +86,30 @@ npm install --cache "$PWD/.npm-cache"
 | `tests/validation.test.ts` | 提交载荷结构校验（Zod）、研究语义校验、理解检查一致性、提交前完成度、属性快照 |
 | `tests/rendering.test.ts` | 公共页面、问卷步骤、路由表、管理后台安全渲染行为、模拟组件渲染 |
 | `tests/heroOrbitGeometry.test.ts` | 首页主视觉几何一致性：圆心共用、三节点等距且夹角 120°、标签不压节点、三维度样式等权 |
+| `tests/netlifyAdapter.test.ts` | Netlify 适配层端到端：405/503/429/413/400/401/403/204、请求体与体积守卫、查询参数、client IP 限流分桶、含中文响应头规范化、出错兜底不泄露细节 |
 | `tests/videoFallback.test.ts` | 演示视频缺失 / SPA 回退返回 HTML / 网络失败时均退化为占位界面，不崩溃 |
 | `tests/store.test.ts` | 草稿持久化与恢复、随机化在会话中稳定（刷新/返回不重随机）、逐题记录与回改、理解检查保留首次结果、草稿与已提交区分、模拟埋点上限 |
+
+### 部署平台与「一份业务逻辑」（Netlify 适配层）
+
+本项目部署在 **Netlify**。但服务端逻辑只有一份，位于 `api/`（Vercel 风格
+`(req, res)`），Netlify 通过一层薄适配复用它们：
+
+```text
+netlify/functions/
+  _lib/adapter.ts       Request → Vercel 风格 req/res → Response
+  submit-survey.ts      import ../../api/submit-survey 后包一层
+  admin-export.ts       import ../../api/admin/export   后包一层
+```
+
+改后端逻辑时**只改 `api/` 下的文件**，不要在 `netlify/functions/` 里重复实现。
+真实路径映射由 `public/_redirects` 提供（`/api/submit-survey` → 函数），
+前端请求的 URL 因此在 Netlify 与 Vercel 上完全一致。
+
+本地跑测试时注意：`tests/netlifyAdapter.test.ts` 中的导出鉴权用例会真的向
+`SUPABASE_URL` 校验 token，而测试里用的是假域名，所以那几条用例要等网络超时
+（每条显式声明 20s 超时）。这是**故意**的——正是为了验证"鉴权失败时失败关闭、
+不泄露任何数据"，而不是给它打桩。
 
 ### 测试环境的一个坑：localStorage 被 Node 遮蔽
 
@@ -423,7 +445,7 @@ Vite 会自动尝试下一个可用端口，并在终端打印实际地址。也
 
 ### `npm test` 失败或提示没有测试文件
 
-`npm test` 会运行 `tests/` 下的 8 个测试文件（当前 188 个断言），全部应为通过。
+`npm test` 会运行 `tests/` 下的 9 个测试文件（当前 208 个断言），全部应为通过。
 如果提示找不到测试文件，说明 `tests/` 被清空或工作目录不对（必须在项目根目录执行）。
 如果某个测试失败，通常意味着研究数据被改动而设计校验未通过
 （例如矩阵秩不再等于 3、属性水平失衡），**这属于研究设计问题，不是测试问题**。

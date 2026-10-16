@@ -26,15 +26,18 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# SPA 回退与安全响应头。
-#
-# 说明：回退规则同时写在 `public/_redirects` 里（构建时会复制到 dist/）。
-# 两者内容一致，互为兜底：即使 Netlify 因 Base directory 配置而忽略了本文件，
-# `public/_redirects` 仍然会生效。
-#
-# 为什么不使用 `/*  /index.html  200` 兜底：它会把缺失的静态文件也改写成
-# index.html（例如 /videos/fall-demo.mp4 会变成 200 + text/html），
-# 破坏"视频缺失时降级为占位界面"的行为。逐条列出路由更安全。
+# Serverless Functions 目录。
+# Netlify 用 esbuild 打包，会跟随 import 到 netlify/functions/ 之外的
+# `api/` 与 `src/`，因此业务逻辑只有一份实现（api/ 下那两个文件）。
+# 以 `_` 开头的目录（_lib）不会被作为函数入口暴露。
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# ── 路由规则（API 转发 + SPA 回退）统一放在 `public/_redirects` ────────────
+# 原因：该文件会被 Vite 复制到 publish 目录（dist/_redirects），Netlify 一定会读取，
+# 不受 Base directory 配置影响。把路由规则集中在一处，避免两套配置各说各话。
+# 本文件只保留构建、functions 与响应头配置。
 
 [[headers]]
   for = "/*"
