@@ -60,7 +60,7 @@
 | 表单校验 | Zod（前后端共用同一套校验规则：前端提交前自检，服务端独立复核） |
 | 后端 | Supabase（PostgreSQL + Auth + Row Level Security） |
 | 服务端接口 | `api/` 目录下的 Serverless Function（Vercel 自动识别）：提交与 CSV 导出 |
-| 测试 | Vitest + jsdom（9 个测试文件，208 个断言，含页面渲染、主视觉几何、草稿持久化、视频降级与 Netlify 适配层测试） |
+| 测试 | Vitest + jsdom（10 个测试文件，234 个断言，含页面渲染、主视觉几何、草稿持久化、视频降级、Netlify 适配层与模块六测试） |
 | 图标 | lucide-react |
 
 > 说明：表单状态由 Zustand 统一管理，校验全部由 Zod 完成（前后端共用同一套规则），
@@ -91,8 +91,9 @@ npm test                                 # 运行测试
 | 文档 | 内容 |
 |---|---|
 | [docs/SETUP.md](docs/SETUP.md) | 本地开发：环境要求、命令、项目结构、环境变量、如何修改研究内容、修改研究设计的强制流程 |
-| [docs/DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md) | 数据字典：十张表与 `analysis_long` 视图的字段含义、C1–C8 与 T01–T12 编码表、量表题与记分方向、长表导出与表连接、DCE 选择记录示例 |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | 部署：Vercel（主要）与 Netlify（备选）、SPA 重写、Serverless Functions、环境变量、上线后验证清单 |
+| [docs/DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md) | 数据字典：十一张表与 `analysis_long` 视图的字段含义、C1–C8 与 T01–T12 编码表、量表题与记分方向、长表导出与表连接、DCE 选择记录示例 |
+| [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md) | **Supabase 操作手册**：建库步骤、V1.1 升级、Netlify 变量、协作分工、验收清单、数据导出、排错 |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | 部署：Netlify（本项目采用）与 Vercel、SPA 重写、Serverless Functions、环境变量、上线后验证清单 |
 | [docs/RESEARCH_NOTES.md](docs/RESEARCH_NOTES.md) | 研究设计审查：已核对通过项、需要研究团队确认的问题、本项目明确不做的事 |
 | [supabase/README.md](supabase/README.md) | 建库步骤、Auth 与管理员白名单、RLS/权限自检查询、`submit_survey()` 事务语义 |
 
@@ -138,7 +139,7 @@ npm test                                 # 运行测试
 - 服务端接口：`POST /api/submit-survey`（唯一写入通道，服务端权威校验）与
   `GET /api/admin/export`（需登录 + `research_admins` 白名单，导出带 BOM 的 CSV）
 - 研究管理后台：邮箱密码登录、统计面板、上线前检查、逐题选择分布与导出入口
-- 测试：9 个 Vitest 测试文件、208 个断言（设计完整性、随机化、数据一致性、校验规则、
+- 测试：10 个 Vitest 测试文件、234 个断言（设计完整性、随机化、数据一致性、校验规则、
   草稿持久化与恢复、
   页面渲染），`npm run typecheck` 与 `npm test` 当前均通过
 

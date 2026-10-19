@@ -8,7 +8,8 @@
 相关文档：
 
 - 数据表结构与编码规则：[DATA_DICTIONARY.md](./DATA_DICTIONARY.md)
-- 部署（Vercel / Netlify）：[DEPLOYMENT.md](./DEPLOYMENT.md)
+- **Supabase 建库与协作**：[SUPABASE_SETUP.md](./SUPABASE_SETUP.md)
+- 部署（Netlify / Vercel）：[DEPLOYMENT.md](./DEPLOYMENT.md)
 - 研究设计审查与待确认事项：[RESEARCH_NOTES.md](./RESEARCH_NOTES.md)
 
 ---
@@ -76,7 +77,7 @@ npm install --cache "$PWD/.npm-cache"
   `window.scrollTo`、每个测试后清理 DOM 与 `localStorage`）
 - 匹配范围：`tests/**/*.test.ts`
 
-现有九个测试文件（当前共 208 个断言，全部通过）：
+现有十个测试文件（当前共 234 个断言，全部通过）：
 
 | 测试文件 | 覆盖内容 |
 |---|---|
@@ -86,6 +87,7 @@ npm install --cache "$PWD/.npm-cache"
 | `tests/validation.test.ts` | 提交载荷结构校验（Zod）、研究语义校验、理解检查一致性、提交前完成度、属性快照 |
 | `tests/rendering.test.ts` | 公共页面、问卷步骤、路由表、管理后台安全渲染行为、模拟组件渲染 |
 | `tests/heroOrbitGeometry.test.ts` | 首页主视觉几何一致性：圆心共用、三节点等距且夹角 120°、标签不压节点、三维度样式等权 |
+| `tests/customConfig.test.ts` | 模块六自由自选配置：8 种组合反查、必填校验、伪造编码被拒、开关交互与草稿持久化 |
 | `tests/netlifyAdapter.test.ts` | Netlify 适配层端到端：405/503/429/413/400/401/403/204、请求体与体积守卫、查询参数、client IP 限流分桶、含中文响应头规范化、出错兜底不泄露细节 |
 | `tests/videoFallback.test.ts` | 演示视频缺失 / SPA 回退返回 HTML / 网络失败时均退化为占位界面，不崩溃 |
 | `tests/store.test.ts` | 草稿持久化与恢复、随机化在会话中稳定（刷新/返回不重随机）、逐题记录与回改、理解检查保留首次结果、草稿与已提交区分、模拟埋点上限 |
@@ -150,6 +152,7 @@ ExperimentalWarning: localStorage is not available because --localstorage-file w
 │       └── admin-export.ts     #   包一层 api/admin/export
 ├── docs/                        # 项目文档
 │   ├── SETUP.md                 #   本文件
+│   ├── SUPABASE_SETUP.md        #   Supabase 建库 / 协作 / 验收 / 导出 操作手册
 │   ├── DATA_DICTIONARY.md       #   数据字典
 │   ├── DEPLOYMENT.md            #   部署指南
 │   ├── RESEARCH_NOTES.md        #   研究设计审查（与 V1.0 原文对照的核对记录）
@@ -452,7 +455,7 @@ Vite 会自动尝试下一个可用端口，并在终端打印实际地址。也
 
 ### `npm test` 失败或提示没有测试文件
 
-`npm test` 会运行 `tests/` 下的 9 个测试文件（当前 208 个断言），全部应为通过。
+`npm test` 会运行 `tests/` 下的 10 个测试文件（当前 234 个断言），全部应为通过。
 如果提示找不到测试文件，说明 `tests/` 被清空或工作目录不对（必须在项目根目录执行）。
 如果某个测试失败，通常意味着研究数据被改动而设计校验未通过
 （例如矩阵秩不再等于 3、属性水平失衡），**这属于研究设计问题，不是测试问题**。
