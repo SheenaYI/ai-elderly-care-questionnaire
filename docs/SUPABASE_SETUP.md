@@ -252,19 +252,65 @@ values ('your-email@example.com');
 
 ## 5. Netlify 环境变量配置
 
-### 5.1 确认 Base directory 是空的
+### 5.1 构建设置：**通常什么都不用设**
 
-**Site configuration → Build & deploy → Build settings**：
+很多人会问："为什么 Build command 和 Publish directory 要我自己填？"
+**答案是不用填** —— 本仓库已经在 `netlify.toml` 里声明了，Netlify 会自动读取。
 
-| 设置项 | 值 |
+```toml
+# netlify.toml（仓库根目录，已随代码提交）
+[build]
+  command = "npm run build"
+  publish = "dist"
+```
+
+Netlify 官方文档的两条规则决定了这一点：
+
+1. **`netlify.toml` 里的设置会覆盖 UI 里的同名设置**
+   —— 所以即使在 UI 里留空或填错，实际构建仍以文件为准。
+2. **如果仓库里只有站点本身、且位于仓库根目录，Netlify 会自动识别构建设置**
+   —— 本仓库正是这种情况（`package.json`、`index.html`、`vite.config.ts` 都在根上），
+   会自动识别为 Vite 项目，默认就是 `npm run build` + `dist`。
+
+**所以正确的做法是：保持默认，不要手动改。**
+
+| 设置项 | 建议值 | 说明 |
+|---|---|---|
+| Base directory | **（留空）** | 根目录时默认就是仓库根 |
+| Build command | 留空 / 默认 | `netlify.toml` 会提供 |
+| Publish directory | 留空 / 默认 | `netlify.toml` 会提供 |
+
+#### ⚠️ 唯一需要检查的情况：残留的旧 Base directory
+
+如果你这个 Netlify 站点是**在项目搬到根目录之前**创建的，
+UI 里可能残留了旧路径 `work/ai-elderly-care-questionnaire`。
+
+**为什么必须清空它**：Base directory 决定 Netlify 去哪找 `package.json` 与
+`netlify.toml`。如果它指向一个**已不存在的目录**，
+Netlify 会先在那里失败，根本读不到根目录的 `netlify.toml`，于是：
+
+- 构建失败（`package.json` 找不到），或
+- 发布目录为空 → **全站 404**
+
+**检查方法**：
+
+**Project configuration → Developer settings → Continuous deployment → Build settings**
+
+- 若 Base directory **是空的** → 不用做任何事 ✅
+- 若显示 `work/ai-elderly-care-questionnaire` 或其他旧路径 → **清空它**，保存，然后重新部署
+
+> 补充说明：如果你的站点**是从没配过 Base directory 的新建站点**，
+> 那么连这一步都不用检查，直接跳到 5.2。
+
+#### 什么情况下才需要手动填
+
+| 情况 | 需要做什么 |
 |---|---|
-| Base directory | **（留空）** |
-| Build command | `npm run build` |
-| Publish directory | `dist` |
+| 站点源码**不在**仓库根目录（例如在子目录） | 设 Base directory 指向该子目录 |
+| 用了 monorepo（多个前端共存一个仓库） | 设 Base directory / Package directory |
+| 想用**不同的**构建命令（本仓库不需要） | 在 UI 填，但会被 `netlify.toml` 覆盖——应改文件而非 UI |
 
-> 应用已在仓库根目录，因此不需要 Base directory。
-> 如果这里残留了旧路径（如 `work/ai-elderly-care-questionnaire`），请**清空**，
-> 否则构建会失败。
+本仓库不属于以上任何一种，所以**不需要手动配置**。
 
 ### 5.2 加 4 个环境变量
 

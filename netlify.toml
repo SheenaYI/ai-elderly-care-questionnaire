@@ -3,10 +3,10 @@
 # ✅ 应用已位于**仓库根目录**（package.json / index.html / vite.config.ts 都在根上），
 #    因此 Netlify 的默认设置就能正确构建：**不需要设置 Base directory**。
 #
-#    只需确认（通常默认就是）：
-#      Base directory   : （留空）
-#      Build command    : npm run build
-#      Publish directory: dist
+#    什么都不用填 —— 下面的 [build] 就是权威来源，它会覆盖 Netlify UI 里的同名设置，
+#    而 Base directory 留空时默认即仓库根目录。
+#    唯一需要检查的：如果这个站点是项目搬到根目录之前建的，UI 里可能残留旧路径，
+#    那会导致 Netlify 找不到本文件 → 构建失败 / 全站 404。有残留就清空它。
 #
 # 路由规则（API 转发 + SPA 回退）统一放在 `public/_redirects`：
 # 该文件会被 Vite 复制到 publish 目录（dist/_redirects），Netlify 一定会读取，

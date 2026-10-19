@@ -294,16 +294,27 @@ Vite 在**构建时**把 `VITE_` 开头的变量内联进前端 JavaScript。
 > **该问题已通过把应用提到仓库根目录解决。** 现在 `package.json`、`index.html`、
 > `vite.config.ts`、`netlify.toml` 都在仓库根目录，Netlify 的默认设置即可正确构建。
 
-**当前应有的设置（通常全为默认值，无需修改）：**
+**当前应有的设置：全部保持默认，不需要手动填写。**
 
-| 设置项 | 值 |
-|---|---|
-| Base directory | **（留空）** |
-| Build command | `npm run build` |
-| Publish directory | `dist` |
+| 设置项 | 建议值 | 为什么不用填 |
+|---|---|---|
+| Base directory | **（留空）** | 未设置时默认就是仓库根目录 |
+| Build command | 留空 / 默认 | `netlify.toml` 已声明 `npm run build`，且**文件设置覆盖 UI** |
+| Publish directory | 留空 / 默认 | 同上，`netlify.toml` 已声明 `dist` |
 
-**为什么"留空"是对的**：`netlify/functions/` 与 `netlify.toml` 都在根目录，
-Netlify 在 Base directory 内查找 Functions，根目录正是它要找的地方。
+依据 Netlify 官方文档的两条规则：
+
+1. `netlify.toml` 中的设置会**覆盖** Netlify UI 中的同名设置
+   （"settings specified in `netlify.toml` override any corresponding settings in the Netlify UI"）。
+2. 仓库根目录下只有一个站点时，Netlify 会**自动识别**构建设置
+   （"If your repository contains only the site you want to deploy, stored in the
+   repository root, Netlify will automatically detect the build settings for you"）。
+
+本仓库正好满足：`package.json`、`index.html`、`vite.config.ts`、`netlify.toml`
+全在仓库根目录。
+
+**为什么 Base directory 必须为空**：`netlify/functions/` 与 `netlify.toml` 都在根目录，
+而 Netlify 只在 Base directory 内查找 Functions 与配置文件；根目录正是它要找的地方。
 
 **如果 Netlify 站点是之前建的**，可能残留了旧的 Base directory 设置
 （指向已不存在的 `work/ai-elderly-care-questionnaire`）。请把它**清空**，
