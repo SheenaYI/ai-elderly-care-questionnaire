@@ -143,6 +143,21 @@ function AdminLogin({
           </button>
         </form>
 
+        <div className="mt-5 rounded-panel border border-sage-200 bg-sage-50 px-3.5 py-3">
+          <p className="text-[0.85rem] font-semibold text-forest-800">登录失败时依次排查</p>
+          <ol className="mt-1.5 space-y-1 text-[0.82rem] leading-relaxed text-sage-700">
+            <li>
+              1. 账号是否已在 Supabase 的 Authentication → Users 中
+              <strong className="font-semibold">确认邮箱</strong>（未确认的账号无法登录）
+            </li>
+            <li>2. 邮箱与密码是否与 Supabase 中创建的完全一致</li>
+            <li>
+              3. 若能登录但提示"无访问权限"，才是白名单问题
+              （需在数据表 research_admins 中登记该邮箱）
+            </li>
+          </ol>
+        </div>
+
         <p className="mt-5 border-t border-sage-200 pt-4 text-[0.85rem] leading-relaxed text-sage-700">
           <ShieldAlert className="mr-1.5 inline h-4 w-4 align-[-2px]" aria-hidden="true" />
           本后台仅限经研究团队明确授权的研究人员访问。账号由研究团队在 Supabase Auth 中创建，

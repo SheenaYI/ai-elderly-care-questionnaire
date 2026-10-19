@@ -541,7 +541,45 @@ select id, is_active from public.questionnaire_versions;
 
 同上——`questionnaire_versions` 里没有对应版本号。
 
-### 9.5 `/admin` 显示"无访问权限"
+### 9.5 `/admin` 登录失败："邮箱或密码不正确"
+
+**先分清两件事**：能不能**登录**（认证）与能不能**看数据**（授权）是两道独立的门。
+
+| 阶段 | 依赖什么 | 失败时的提示 |
+|---|---|---|
+| ① 认证（Email + 密码） | Supabase **Authentication → Users** 中是否存在该账号、**邮箱是否已确认** | "邮箱或密码不正确" |
+| ② 授权（白名单） | 数据表 `research_admins` 中是否有该邮箱 | "无访问权限" |
+
+**所以"已加入白名单"不能解释登录失败**——白名单只在登录成功之后才起作用。
+
+按顺序排查：
+
+1. **邮箱是否已确认**（最常见原因）
+   Supabase → **Authentication → Users** → 看该用户行的 **Email Confirmed** 列。
+   若未确认：
+   - 直接点该用户右侧的菜单 → 手动确认邮箱，**或**
+   - 删除后重建，创建时**勾选 "Auto Confirm User"**
+
+2. **密码是否一致**
+   忘记密码可在同一处重置：用户行右侧菜单 → **Reset password**。
+
+3. **是否启用了邮箱登录**
+   Supabase → **Authentication → Sign In / Providers → Email** 是否启用。
+   若未启用，登录时会提示"该项目未启用邮箱密码登录"。
+
+4. **登录过于频繁**
+   多次失败会触发限流，等待约一分钟再试。
+
+5. **前端能否连到 Supabase**
+   若提示"无法连接到 Authentication 服务"，检查 `VITE_SUPABASE_URL` 是否填对。
+
+> 排查小技巧：登录失败时浏览器控制台会打印
+> `[admin-signin] code=<错误码> status=<状态码>`（**只含错误码，不含邮箱、密码或 token**）。
+> 例如 `code=email_not_confirmed` 就直指第 1 条。
+
+**只有登录成功后才轮到白名单。** 登录成功但看到"无访问权限"，才去查 9.6。
+
+### 9.6 `/admin` 显示"无访问权限"
 
 | 原因 | 解决 |
 |---|---|
@@ -549,12 +587,12 @@ select id, is_active from public.questionnaire_versions;
 | 邮箱打错（拼写） | `select * from public.research_admins;` 核对 |
 | 大小写 | 不影响（比对不区分大小写） |
 
-### 9.6 `/admin` 显示"后台尚未配置"
+### 9.7 `/admin` 显示"后台尚未配置"
 
 前端 `VITE_` 变量缺失 → 浏览器拿不到 Supabase 客户端配置。
 按 9.1 排查。
 
-### 9.7 导出返回 401 / 403
+### 9.8 导出返回 401 / 403
 
 | 状态码 | 含义 | 解决 |
 |---|---|---|
@@ -562,16 +600,16 @@ select id, is_active from public.questionnaire_versions;
 | 403 | 已登录但不在白名单 | 加白名单 |
 | 503 | 服务端变量缺失 | 配 `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` |
 
-### 9.8 导出 CSV 中文乱码
+### 9.9 导出 CSV 中文乱码
 
 本系统导出已带 UTF-8 BOM，正常不会乱码。
 若用 Supabase 控制台导出后乱码，用 Excel 的"数据 → 从文本/CSV"导入并选 UTF-8。
 
-### 9.9 项目被暂停
+### 9.10 项目被暂停
 
 Free 计划长期无访问会暂停。控制台点 **Restore project** 即可，数据不丢。
 
-### 9.10 想重新测一次同一份问卷
+### 9.11 想重新测一次同一份问卷
 
 参与者编号存在浏览器里，`participant_id` 会被复用 → 二次提交被拒（防重复）。
 
