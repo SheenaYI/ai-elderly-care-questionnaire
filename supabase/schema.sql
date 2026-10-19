@@ -27,6 +27,7 @@
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- ═══════════════════════════════════════════════════════════════════════════
+-- ═══════════════════════════════════════════════════════════════════════════
 -- 0001_init.sql — 初始迁移（initial migration）
 -- 智能养老AI监测系统配置偏好与采纳意愿调查 · 研究数据库结构
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -335,6 +336,36 @@ comment on column public.survey_sessions.user_agent is
   '提交时的 User-Agent（仅用于设备/浏览器兼容性排查，含少量技术信息，不得用于识别个人）。';
 
 
+
+-- ───────────────────────────────────────────────────────────────────────────
+-- 10. 模块六：自由自选配置（V1.0 之外新增）
+-- ───────────────────────────────────────────────────────────────────────────
+--
+-- 每位参与者一条记录：三个"开关"拼出的理想配置。
+-- 与 dce_choices 的区别：DCE 记录的是"被迫权衡时的选择"，本表记录"主动设定的理想"。
+-- x1/x2/x3 与 C1–C8 的编码完全一致，因此按 (x1, x2, x3) 可直接 join 到配置表。
+
+create table if not exists public.custom_config_choices (
+  id                   bigserial primary key,
+  participant_id       text not null unique
+                         references public.participants (participant_id) on delete cascade,
+  x1                   smallint not null check (x1 in (0, 1)),
+  x2                   smallint not null check (x2 in (0, 1)),
+  x3                   smallint not null check (x3 in (0, 1)),
+  -- 该组合对应的配置编码；8 种组合与 C1–C8 一一对应，正常不会为 NULL，
+  -- 允许 NULL 仅为兼容历史数据与显式表达"自定义组合"
+  matched_profile_id   text check (matched_profile_id ~ '^C[1-8]$'),
+  response_duration_ms integer not null check (response_duration_ms >= 0),
+  created_at           timestamptz not null default now()
+);
+
+comment on table public.custom_config_choices is
+  '模块六：参与者自由设定的理想配置（三个开关）。每人一条；x1–x3 与 C1–C8 编码一致。';
+comment on column public.custom_config_choices.matched_profile_id is
+  '由 (x1,x2,x3) 反查得到的 C1–C8 编码。8 种组合与 8 个配置一一对应，正常不为空。';
+comment on column public.custom_config_choices.response_duration_ms is
+  '参与者在该部分停留/操作的总耗时（毫秒），用于数据质量分析。';
+
 -- ───────────────────────────────────────────────────────────────────────────
 -- 10. 索引：覆盖全部外键 + 常用筛选列
 -- ───────────────────────────────────────────────────────────────────────────
@@ -366,6 +397,9 @@ create index if not exists simulation_events_event_type_idx
 -- survey_responses.participant_id 已有 UNIQUE 约束（自带唯一索引），无需重复建索引。
 create index if not exists survey_sessions_participant_id_idx
   on public.survey_sessions (participant_id);
+
+create index if not exists custom_config_choices_participant_id_idx
+  on public.custom_config_choices (participant_id);
 
 
 -- ───────────────────────────────────────────────────────────────────────────
@@ -504,6 +538,7 @@ declare
   v_events         jsonb;
   v_overall        jsonb;
   v_identity       jsonb;
+  v_custom         jsonb;
 begin
   -- ── 0. 取出标量字段并把数组字段安全归一化 ───────────────────────────────
   v_identity       := case when jsonb_typeof(payload -> 'identity')       = 'object' then payload -> 'identity'       else '{}'::jsonb end;
@@ -512,6 +547,7 @@ begin
   v_ratings        := case when jsonb_typeof(payload -> 'profileRatings') = 'array'  then payload -> 'profileRatings' else '[]'::jsonb end;
   v_comprehension  := case when jsonb_typeof(payload -> 'comprehension')  = 'array'  then payload -> 'comprehension'  else '[]'::jsonb end;
   v_events         := case when jsonb_typeof(payload -> 'simulationEvents') = 'array' then payload -> 'simulationEvents' else '[]'::jsonb end;
+  v_custom         := case when jsonb_typeof(payload -> 'customConfig')      = 'object' then payload -> 'customConfig'      else 'null'::jsonb end;
 
   v_participant_id := nullif(btrim(payload ->> 'participantId'), '');
   v_version        := nullif(btrim(payload ->> 'questionnaireVersion'), '');
@@ -538,6 +574,12 @@ begin
   end if;
   if payload ->> 'startedAt' is null or payload ->> 'submittedAt' is null then
     raise exception 'startedAt/submittedAt is required' using errcode = '22023';
+  end if;
+  -- 模块六为必填（V1.0 之外新增，见 docs/RESEARCH_NOTES.md E 节）
+  if v_custom ->> 'X1' is null
+     or v_custom ->> 'X2' is null
+     or v_custom ->> 'X3' is null then
+    raise exception 'customConfig (X1/X2/X3) is required' using errcode = '22023';
   end if;
 
   -- ── 2. 问卷版本必须已登记且处于启用状态 ─────────────────────────────────
@@ -607,6 +649,7 @@ begin
   delete from public.comprehension_checks where participant_id = v_participant_id;
   delete from public.simulation_events   where participant_id = v_participant_id;
   delete from public.survey_responses    where participant_id = v_participant_id;
+  delete from public.custom_config_choices where participant_id = v_participant_id;
 
   -- 6.1 DCE 选择
   insert into public.dce_choices (
@@ -699,6 +742,26 @@ begin
     q9  = excluded.q9,
     q10 = excluded.q10;
 
+  -- 6.5 自由自选配置（模块六）
+  -- 仅当三个水平齐全时写入；服务端 zod 校验已保证其存在（必填）。
+  if v_custom ->> 'X1' is not null
+     and v_custom ->> 'X2' is not null
+     and v_custom ->> 'X3' is not null then
+    insert into public.custom_config_choices (
+      participant_id, x1, x2, x3, matched_profile_id, response_duration_ms
+    ) values (
+      v_participant_id,
+      (v_custom ->> 'X1')::smallint,
+      (v_custom ->> 'X2')::smallint,
+      (v_custom ->> 'X3')::smallint,
+      nullif(v_custom ->> 'matchedProfileId', ''),
+      coalesce((v_custom ->> 'responseDurationMs')::integer, 0)
+    );
+  else
+    -- 缺失即视为数据不完整，整笔事务回滚（不允许"半个问卷"入库）
+    raise exception 'customConfig (X1/X2/X3) is required' using errcode = '22023';
+  end if;
+
   -- 6.6 问卷会话（追加式，不删除历史）
   insert into public.survey_sessions (
     participant_id, questionnaire_version, prior_experience,
@@ -734,7 +797,8 @@ comment on function public.submit_survey(jsonb) is
 
 insert into public.questionnaire_versions (id, description, is_active)
 values
-  ('V1.0', '初版问卷（模块一至模块五 + DCE A/B 卷各 6 题 + 每人 4 个配置评价）。', true)
+  ('V1.0', '初版问卷（模块一至模块五 + DCE A/B 卷各 6 题 + 每人 4 个配置评价）。', true),
+  ('V1.1', '在 V1.0 基础上新增模块六「理想配置自由设定」（三个系统设置开关）。', true)
 on conflict (id) do nothing;
 
 -- 提示：research_config 为自由键值表，本文件不预置任何键，避免与代码中的常量产生
@@ -742,12 +806,9 @@ on conflict (id) do nothing;
 --       insert into public.research_config (key, value) values ('data_retention_note', '原始数据保存 5 年后删除');
 
 -- ═══════════════════════════════════════════════════════════════════════════
--- 0001_init.sql 结束。下一步：0002_rls_policies.sql（RLS 与策略）。
 -- ═══════════════════════════════════════════════════════════════════════════
 
--- ###########################################################################
--- 第 2 部分：0002_rls_policies.sql
--- ###########################################################################
+-- 0001_init.sql 结束。下一步：0002_rls_policies.sql（RLS 与策略）。
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- 0002_rls_policies.sql — 第 2 步：行级安全（Row Level Security）
@@ -798,6 +859,7 @@ alter table public.comprehension_checks  enable row level security;
 alter table public.simulation_events     enable row level security;
 alter table public.survey_responses      enable row level security;
 alter table public.survey_sessions       enable row level security;
+alter table public.custom_config_choices  enable row level security;
 
 
 -- ───────────────────────────────────────────────────────────────────────────
@@ -942,6 +1004,18 @@ create policy survey_sessions_select_admins on public.survey_sessions
 comment on policy survey_sessions_select_admins on public.survey_sessions is
   '保护对象：问卷会话/重试审计记录（含 User-Agent）。仅白名单管理员可读；写入只经 submit_survey()。';
 
+-- ───────────────────────────────────────────────────────────────────────────
+-- 模块六：自由自选配置（V1.0 之外新增）
+-- ───────────────────────────────────────────────────────────────────────────
+-- 与研究数据表同等保护：仅白名单管理员可读；写入只经 submit_survey()。
+
+drop policy if exists custom_config_choices_select_admins on public.custom_config_choices;
+create policy custom_config_choices_select_admins on public.custom_config_choices
+  for select to authenticated
+  using (public.is_research_admin());
+comment on policy custom_config_choices_select_admins on public.custom_config_choices is
+  '保护对象：参与者自由设定的理想配置（三个开关）。仅白名单管理员可读；写入只经 submit_survey()。';
+
 
 -- ───────────────────────────────────────────────────────────────────────────
 -- 6. 自检（执行后可在 SQL Editor 中运行以下查询核对）
@@ -962,12 +1036,9 @@ comment on policy survey_sessions_select_admins on public.survey_sessions is
 --    where schemaname = 'public' order by tablename, policyname;
 --
 -- ═══════════════════════════════════════════════════════════════════════════
--- 0002_rls_policies.sql 结束。下一步：0003_grants.sql（GRANT / REVOKE）。
 -- ═══════════════════════════════════════════════════════════════════════════
 
--- ###########################################################################
--- 第 3 部分：0003_grants.sql
--- ###########################################################################
+-- 0002_rls_policies.sql 结束。下一步：0003_grants.sql（GRANT / REVOKE）。
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- 0003_grants.sql — 第 3 步：权限（GRANT / REVOKE）
@@ -1107,5 +1178,6 @@ alter default privileges in schema public revoke all on sequences from anon;
 --      and p.proname in ('submit_survey', 'is_research_admin', 'is_research_admin_email');
 --
 -- ═══════════════════════════════════════════════════════════════════════════
--- 0003_grants.sql 结束。数据库初始化完成，继续阅读 supabase/README.md。
 -- ═══════════════════════════════════════════════════════════════════════════
+
+-- 0003_grants.sql 结束。数据库初始化完成，继续阅读 supabase/README.md。

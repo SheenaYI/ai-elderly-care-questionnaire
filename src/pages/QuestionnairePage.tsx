@@ -8,6 +8,7 @@ import ScenarioStep from '@/features/questionnaire/ScenarioStep'
 import DceStep from '@/features/dce/DceStep'
 import RatingsStep from '@/features/ratings/RatingsStep'
 import OverallStep from '@/features/questionnaire/OverallStep'
+import IdealConfigStep from '@/features/questionnaire/IdealConfigStep'
 import ReviewStep from '@/features/questionnaire/ReviewStep'
 import { DeclinedPage, DonePage } from '@/features/questionnaire/DoneStep'
 import {
@@ -37,6 +38,7 @@ const STEP_COMPONENT_MAP: Record<Exclude<StepId, 'done'>, string> = {
   dce: 'dce',
   ratings: 'ratings',
   overall: 'overall',
+  ideal: 'ideal',
   review: 'review',
 }
 
@@ -73,7 +75,7 @@ export default function QuestionnairePage() {
   }
 
   // ── 访问守卫 ────────────────────────────────────────────
-  const requiresConsent: StepId[] = ['scenario', 'dce', 'ratings', 'overall', 'review']
+  const requiresConsent: StepId[] = ['scenario', 'dce', 'ratings', 'overall', 'ideal', 'review']
   if (requiresConsent.includes(currentStep) && draft.consentStatus !== 'agreed') {
     return <Navigate to="/questionnaire/consent" replace />
   }
@@ -137,10 +139,12 @@ export default function QuestionnairePage() {
 
       {currentStep === 'ratings' && <RatingsStep onContinue={() => go('overall')} />}
 
-      {currentStep === 'overall' && <OverallStep onContinue={() => go('review')} />}
+      {currentStep === 'overall' && <OverallStep onContinue={() => go('ideal')} />}
+
+      {currentStep === 'ideal' && <IdealConfigStep onContinue={() => go('review')} />}
 
       {currentStep === 'review' && (
-        <ReviewStep onBack={() => go('overall')} onSubmitted={handleSubmitted} />
+        <ReviewStep onBack={() => go('ideal')} onSubmitted={handleSubmitted} />
       )}
 
       {currentStep === 'done' && (

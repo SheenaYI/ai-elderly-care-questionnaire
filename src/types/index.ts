@@ -189,6 +189,23 @@ export interface SimulationEventRecord {
 
 export type SubmissionStatus = 'draft' | 'submitted' | 'failed'
 
+/**
+ * 参与者自由自选配置（问卷最后的"理想配置"部分）。
+ *
+ * 与 DCE 不同：DCE 是在两两对比中做选择，这里是让参与者**主动设定**三个开关。
+ * 用于分析"人们理想中的配置"与"实际被迫权衡时的选择"之间的差距。
+ */
+export interface CustomConfigRecord extends AttributeProfile {
+  /**
+   * 该组合若恰好等于 C1–C8 之一，记录对应编码；否则为 null。
+   * 注意：C1–C8 覆盖了 2×2×2 的全部 8 种组合，因此**必然**能匹配到某个编码，
+   * 该字段设为 nullable 仅为兼容历史数据与显式表达"自定义组合"的语义。
+   */
+  matchedProfileId: ProfileId | null
+  /** 作答该部分的耗时（毫秒）。 */
+  responseDurationMs: number
+}
+
 /** 完整问卷草稿。这是本地持久化与提交的单一数据形态。 */
 export interface QuestionnaireDraft {
   /** 问卷版本号，用于 Pilot 与正式版数据分离。 */
@@ -213,6 +230,9 @@ export interface QuestionnaireDraft {
   profileRatings: ProfileRatingRecord[]
 
   overall: OverallEvaluation
+
+  /** 自由自选配置（问卷最后一部分）。 */
+  customConfig: CustomConfigRecord | null
 
   /** 是否在本问卷之前使用过独立"情景体验"页面。 */
   priorExperience: boolean
@@ -250,6 +270,8 @@ export interface SurveySubmission {
   dceChoices: DceChoiceRecord[]
   profileRatings: ProfileRatingRecord[]
   overall: OverallEvaluation
+  /** 自由自选配置（必填）。 */
+  customConfig: CustomConfigRecord
   priorExperience: boolean
   simulationEvents: SimulationEventRecord[]
   startedAt: string

@@ -78,6 +78,16 @@ export interface SurveyResponseRow {
   q10: string
 }
 
+/** 模块六：参与者自由设定的理想配置。 */
+export interface CustomConfigRow {
+  participant_id: string
+  x1: number
+  x2: number
+  x3: number
+  matched_profile_id: ProfileId | null
+  response_duration_ms: number
+}
+
 export interface AdminDataset {
   participants: ParticipantRow[]
   dceChoices: DceChoiceRow[]
@@ -85,6 +95,7 @@ export interface AdminDataset {
   comprehension: ComprehensionRow[]
   simulationEvents: SimulationEventRow[]
   surveyResponses: SurveyResponseRow[]
+  customConfigs: CustomConfigRow[]
 }
 
 export interface AdminStats {
@@ -142,6 +153,17 @@ export interface AdminStats {
   }[]
   /** 配置使用是否均衡（1 表示完全均衡）。 */
   ratingAllocationBalance: { profileId: ProfileId; count: number }[]
+  /** 模块六：自由自选配置的分布与"理想 vs 实际选择"对比。 */
+  customConfig: {
+    /** 完成该部分的人数。 */
+    total: number
+    /** 各配置被自由选择的次数（C1–C8，缺省为 0）。 */
+    profileCounts: { profileId: ProfileId; count: number }[]
+    /** 单行用户占比（三个开关里"开"的数量）分布：0/1/2/3。 */
+    exposureLevelCounts: { level: number; count: number }[]
+    /** 平均作答耗时。 */
+    averageDurationMs: number | null
+  }
   quality: {
     /** 太快作答的 DCE 记录数（< 2 秒）。 */
     tooFastDce: number
@@ -166,7 +188,15 @@ async function fetchAll<T>(table: string, columns: string, orderBy?: string): Pr
 
 /** 拉取全部研究数据（受 RLS 限制，只有授权研究人员能取到）。 */
 export async function loadAdminDataset(): Promise<AdminDataset> {
-  const [participants, dceChoices, profileRatings, comprehension, simulationEvents, surveyResponses] =
+  const [
+    participants,
+    dceChoices,
+    profileRatings,
+    comprehension,
+    simulationEvents,
+    surveyResponses,
+    customConfigs,
+  ] =
     await Promise.all([
       fetchAll<ParticipantRow>(
         'participants',
@@ -190,9 +220,21 @@ export async function loadAdminDataset(): Promise<AdminDataset> {
         'participant_id,task_id,profile_id,event_type,source,duration_ms',
       ),
       fetchAll<SurveyResponseRow>('survey_responses', 'participant_id,q8,q9,q10'),
+      fetchAll<CustomConfigRow>(
+        'custom_config_choices',
+        'participant_id,x1,x2,x3,matched_profile_id,response_duration_ms',
+      ),
     ])
 
-  return { participants, dceChoices, profileRatings, comprehension, simulationEvents, surveyResponses }
+  return {
+    participants,
+    dceChoices,
+    profileRatings,
+    comprehension,
+    simulationEvents,
+    surveyResponses,
+    customConfigs,
+  }
 }
 
 function mean(values: number[]): number | null {
@@ -334,6 +376,17 @@ export function computeAdminStats(dataset: AdminDataset): AdminStats {
     comprehension.filter((c) => !c.is_correct).map((c) => c.participant_id),
   ).size
 
+  // ── 模块六统计 ──────────────────────────────────────────
+  const customRows = dataset.customConfigs
+  const customProfileCounts = PROFILE_IDS.map((profileId) => ({
+    profileId,
+    count: customRows.filter((r) => r.matched_profile_id === profileId).length,
+  }))
+  const exposureLevelCounts = [0, 1, 2, 3].map((level) => ({
+    level,
+    count: customRows.filter((r) => r.x1 + r.x2 + r.x3 === level).length,
+  }))
+
   return {
     overview: {
       totalParticipants: participants.length,
@@ -363,6 +416,12 @@ export function computeAdminStats(dataset: AdminDataset): AdminStats {
       count: r.ratedCount,
     })),
     quality: { tooFastDce, overallLeftShare, comprehensionConcern },
+    customConfig: {
+      total: customRows.length,
+      profileCounts: customProfileCounts,
+      exposureLevelCounts,
+      averageDurationMs: mean(customRows.map((r) => r.response_duration_ms)),
+    },
   }
 }
 

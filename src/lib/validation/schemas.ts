@@ -18,12 +18,14 @@ import {
   BLOCK_TASK_IDS,
   TASKS_PER_BLOCK,
   PROFILES_PER_PARTICIPANT,
+  profileIdForAttributes,
 } from '../../data/dceTasks'
 import { ALL_SCALE_ITEM_IDS, SCALE_ITEM_COUNT } from '../../data/scales'
 import {
   COMPREHENSION_QUESTIONS,
   QUESTIONNAIRE_VERSION,
   correctOptionIndex,
+  isCustomConfigComplete,
 } from '../../data/questionnaire'
 
 // ─────────────────────────────────────────────────────────────
@@ -169,6 +171,23 @@ export const overallSchema = z.object({
 })
 
 // ─────────────────────────────────────────────────────────────
+// 模块六｜自由自选配置
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * 三个开关拼出的配置。
+ * `matchedProfileId` 记录该组合对应的 C1–C8 编码（8 种组合与 8 个配置一一对应，
+ * 因此理论上总能匹配；仍允许 null 以兼容历史数据）。
+ */
+export const customConfigSchema = z.object({
+  X1: attributeLevelSchema,
+  X2: attributeLevelSchema,
+  X3: attributeLevelSchema,
+  matchedProfileId: profileIdSchema.nullable(),
+  responseDurationMs: z.number().int().min(0).max(24 * 60 * 60 * 1000),
+})
+
+// ─────────────────────────────────────────────────────────────
 // 模拟使用埋点
 // ─────────────────────────────────────────────────────────────
 
@@ -196,6 +215,8 @@ export const submissionSchema = z.object({
   dceChoices: dceChoicesSchema,
   profileRatings: profileRatingsSchema,
   overall: overallSchema,
+  /** 必填：参与者必须在最后自己设定一套配置 */
+  customConfig: customConfigSchema,
   priorExperience: z.boolean(),
   simulationEvents: z.array(simulationEventSchema).max(500),
   startedAt: z.string().datetime(),
@@ -321,6 +342,21 @@ export function validateSubmissionSemantics(input: SubmissionInput): SemanticPro
     }
   }
 
+  // 5.5 自由自选配置：编码必须与三个水平一致，不能伪造
+  {
+    const expected = profileIdForAttributes(
+      input.customConfig.X1,
+      input.customConfig.X2,
+      input.customConfig.X3,
+    )
+    if (input.customConfig.matchedProfileId !== expected) {
+      problems.push({
+        path: 'customConfig.matchedProfileId',
+        message: `记录的配置编码（${input.customConfig.matchedProfileId ?? 'null'}）与三个开关的组合（应为 ${expected ?? '无对应配置'}）不一致`,
+      })
+    }
+  }
+
   // 6. 时间合理性
   const started = Date.parse(input.startedAt)
   const submitted = Date.parse(input.submittedAt)
@@ -363,6 +399,8 @@ export interface CompletionReport {
   dce: boolean
   ratings: boolean
   overall: boolean
+  /** 模块六：自由自选配置 */
+  customConfig: boolean
   /** 缺失项的面向参与者说明。 */
   missing: { section: string; detail: string }[]
   /** 是否全部完成，可以提交。 */
@@ -382,6 +420,7 @@ export function checkCompletion(draft: {
   dceChoices: readonly unknown[]
   profileRatings: readonly { scores: Record<string, unknown> }[]
   overall: { q8: unknown; q9: unknown; q10?: unknown }
+  customConfig: { X1?: unknown; X2?: unknown; X3?: unknown } | null | undefined
 }): CompletionReport {
   const missing: { section: string; detail: string }[] = []
 
@@ -434,8 +473,26 @@ export function checkCompletion(draft: {
     draft.overall.q9 !== null && draft.overall.q9 !== undefined
   if (!overall) missing.push({ section: '总体评价', detail: 'Q8、Q9 尚未作答（Q10 可跳过）' })
 
+  // 草稿里的 customConfig 可能是任意形态（旧草稿为 null），
+  // 这里收窄成布尔判定：三个水平都必须明确为 0 或 1。
+  const rawCustom = draft.customConfig
+  const customConfig =
+    rawCustom !== null &&
+    rawCustom !== undefined &&
+    isCustomConfigComplete({
+      X1: typeof rawCustom.X1 === 'number' ? rawCustom.X1 : null,
+      X2: typeof rawCustom.X2 === 'number' ? rawCustom.X2 : null,
+      X3: typeof rawCustom.X3 === 'number' ? rawCustom.X3 : null,
+    })
+  if (!customConfig) {
+    missing.push({
+      section: '理想配置',
+      detail: '尚未设定三个开关（共享层级 / 共享对象 / 详细监测方式）',
+    })
+  }
+
   return {
-    consent, identity, comprehension, dce, ratings, overall,
+    consent, identity, comprehension, dce, ratings, overall, customConfig,
     missing,
     complete: missing.length === 0,
   }

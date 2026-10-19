@@ -19,6 +19,8 @@ import { submissionSchema, validateSubmissionSemantics } from '@/lib/validation/
 export function buildSubmission(draft: QuestionnaireDraft): SurveySubmission | null {
   if (draft.consentStatus !== 'agreed') return null
   if (!draft.assignedBlock) return null
+  // 自由自选配置为必填项；缺失则不构造载荷（提交前检查会拦截并提示）
+  if (!draft.customConfig) return null
 
   const submittedAt = new Date().toISOString()
   const startedMs = Date.parse(draft.startedAt)
@@ -53,6 +55,7 @@ export function buildSubmission(draft: QuestionnaireDraft): SurveySubmission | n
       q9: draft.overall.q9!,
       q10: draft.overall.q10 ?? '',
     },
+    customConfig: { ...draft.customConfig },
     priorExperience: draft.priorExperience,
     simulationEvents: draft.simulationEvents.map((e) => ({ ...e })),
     startedAt: draft.startedAt,

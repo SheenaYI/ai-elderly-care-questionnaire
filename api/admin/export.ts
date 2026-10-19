@@ -75,6 +75,7 @@ type DatasetName =
   | 'participants'
   | 'dce_choices'
   | 'profile_ratings'
+  | 'custom_config'
   | 'analysis_long'
   | 'merged'
 
@@ -87,12 +88,14 @@ const DATASET_ALIASES: Record<string, DatasetName> = {
   participants: 'participants',
   dce_choices: 'dce_choices',
   profile_ratings: 'profile_ratings',
+  custom_config: 'custom_config',
   analysis_long: 'analysis_long',
   long_format: 'analysis_long',
   merged: 'merged',
 }
 
-const DATASET_LIST = 'participants | dce_choices | profile_ratings | analysis_long | merged'
+const DATASET_LIST =
+  'participants | dce_choices | profile_ratings | custom_config | analysis_long | merged'
 
 // ───────────────────────────────────────────────────────────────────────────
 // 2. 列定义（与 supabase/schema.sql 一一对应，顺序即 CSV 列顺序）
@@ -160,6 +163,18 @@ const PROFILE_RATING_COLUMNS = [
   'created_at',
 ] as const
 
+/** 模块六：参与者自由设定的理想配置（三个开关）。 */
+const CUSTOM_CONFIG_COLUMNS = [
+  'id',
+  'participant_id',
+  'x1',
+  'x2',
+  'x3',
+  'matched_profile_id',
+  'response_duration_ms',
+  'created_at',
+] as const
+
 /** DCE 长表：条件 logit / 混合 logit 的直接输入。 */
 const ANALYSIS_LONG_COLUMNS = [
   'participant_id',
@@ -192,6 +207,12 @@ const MERGED_COLUMNS = [
   'response_created_at',
   'n_dce_choices',
   'n_rated_profiles',
+  // 模块六：自由自选配置（宽表里便于与 DCE 选择直接对比）
+  'custom_x1',
+  'custom_x2',
+  'custom_x3',
+  'custom_matched_profile_id',
+  'custom_response_duration_ms',
   ...SCALE_GROUPS.map((group) => group.column),
 ] as const
 
@@ -522,6 +543,15 @@ async function buildMergedRows(supabase: SupabaseClient): Promise<MergedResult> 
   const choices = await fetchRows(supabase, 'dce_choices', ['id', 'participant_id'], ['id'])
   if (!choices.ok) return choices
 
+  // 模块六：自由自选配置（每人最多 1 条）
+  const customConfigs = await fetchRows(
+    supabase,
+    'custom_config_choices',
+    ['participant_id', 'x1', 'x2', 'x3', 'matched_profile_id', 'response_duration_ms'],
+    ['participant_id'],
+  )
+  if (!customConfigs.ok) return customConfigs
+
   // 11.1 聚合量表均值
   const aggregates = new Map<string, RatingAggregate>()
   for (const row of ratings.rows) {
@@ -549,6 +579,13 @@ async function buildMergedRows(supabase: SupabaseClient): Promise<MergedResult> 
     dceCounts.set(pid, (dceCounts.get(pid) ?? 0) + 1)
   }
 
+  // 11.2b 自由自选配置按参与者索引
+  const customByParticipant = new Map<string, DataRow>()
+  for (const row of customConfigs.rows) {
+    const pid = asText(row['participant_id'])
+    if (pid.length > 0) customByParticipant.set(pid, row)
+  }
+
   // 11.3 总体评价按参与者索引
   const responseByParticipant = new Map<string, DataRow>()
   for (const row of responses.rows) {
@@ -570,6 +607,13 @@ async function buildMergedRows(supabase: SupabaseClient): Promise<MergedResult> 
     values['response_created_at'] = response?.['created_at'] ?? null
     values['n_dce_choices'] = dceCounts.get(pid) ?? 0
     values['n_rated_profiles'] = aggregate?.ratedProfiles ?? 0
+
+    const custom = customByParticipant.get(pid)
+    values['custom_x1'] = custom?.['x1'] ?? null
+    values['custom_x2'] = custom?.['x2'] ?? null
+    values['custom_x3'] = custom?.['x3'] ?? null
+    values['custom_matched_profile_id'] = custom?.['matched_profile_id'] ?? null
+    values['custom_response_duration_ms'] = custom?.['response_duration_ms'] ?? null
 
     SCALE_GROUPS.forEach((group, index) => {
       const sum = aggregate?.sums[index]
@@ -651,6 +695,20 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         return
       }
       sendCsv(res, dataset, toCsv(PARTICIPANT_COLUMNS, result.rows.map(rowValues(PARTICIPANT_COLUMNS))))
+      return
+    }
+
+    if (dataset === 'custom_config') {
+      const result = await fetchRows(supabase, 'custom_config_choices', CUSTOM_CONFIG_COLUMNS, ['id'])
+      if (!result.ok) {
+        sendJson(res, 500, { ok: false, message: result.message })
+        return
+      }
+      sendCsv(
+        res,
+        dataset,
+        toCsv(CUSTOM_CONFIG_COLUMNS, result.rows.map(rowValues(CUSTOM_CONFIG_COLUMNS))),
+      )
       return
     }
 

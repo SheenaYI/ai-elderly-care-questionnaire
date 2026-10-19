@@ -393,6 +393,39 @@ RLS：仅"已在白名单内"的管理员可 `SELECT`；**没有任何写策略*
 
 ---
 
+### 3.11 `custom_config_choices`（模块六，V1.0 之外新增）
+
+参与者自由设定的"理想配置"，每人一条。与 `dce_choices` 的区别：
+DCE 记录**受约束权衡下的选择**，本表记录**不受约束时主动设定的理想**。
+
+| 列 | 类型 | 约束 | 含义 | 来源 |
+|---|---|---|---|---|
+| `id` | bigserial | PK | 代理键 | 数据库生成 |
+| `participant_id` | text | NOT NULL, UNIQUE, FK → `participants.participant_id`, ON DELETE CASCADE | 匿名参与者编号 | 前端生成 |
+| `x1` | smallint | NOT NULL, CHECK in (0,1) | 共享层级：0=仅摘要 / 1=详细原始数据 | 开关 1 |
+| `x2` | smallint | NOT NULL, CHECK in (0,1) | 共享对象：0=仅指定子女 / 1=子女+服务机构 | 开关 2 |
+| `x3` | smallint | NOT NULL, CHECK in (0,1) | 详细监测方式：0=异常时 / 1=全天持续 | 开关 3 |
+| `matched_profile_id` | text | CHECK `^C[1-8]$`，可空 | 由 (x1,x2,x3) 反查得到的配置编码 | 服务端计算 |
+| `response_duration_ms` | integer | NOT NULL, ≥0 | 该部分作答耗时（毫秒） | 前端计时 |
+| `created_at` | timestamptz | NOT NULL, 默认 now() | 写入时间 | 数据库生成 |
+
+**要点**
+
+- 8 种 (x1,x2,x3) 组合与 C1–C8 **一一对应**，因此 `matched_profile_id` 正常不应为空；
+  允许 NULL 仅为兼容历史数据。
+- 服务端会校验 `matched_profile_id` 与三个水平是否一致，防止客户端伪造。
+- RLS 与其他研究数据表一致：**仅白名单管理员可读**，写入只经 `submit_survey()`。
+
+**导出**
+
+| 数据集 | 内容 |
+|---|---|
+| `custom_config` | 本表的完整导出（8 列） |
+| `merged` | 宽表新增 5 列：`custom_x1`、`custom_x2`、`custom_x3`、`custom_matched_profile_id`、`custom_response_duration_ms` |
+
+**手动导出（不写代码）**：Supabase → Table Editor → 选中 `custom_config_choices`
+→ 右上角 **Export → CSV**，即可直接下载。其余各表同理。
+
 ## 4. 写入路径与事务语义
 
 问卷数据**只能**经以下链路写入，不存在第二条通道：

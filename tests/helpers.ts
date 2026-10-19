@@ -101,6 +101,14 @@ export function buildSubmission(
     dceChoices: buildDceChoices(block),
     profileRatings: buildProfileRatings(0),
     overall: { q8: 4, q9: 'privacy_exposure', q10: '' },
+    // 自由自选配置：默认取 C6（X1=0, X2=1, X3=0），字段均为合法值
+    customConfig: {
+      X1: 0,
+      X2: 1,
+      X3: 0,
+      matchedProfileId: 'C6',
+      responseDurationMs: 6400,
+    },
     priorExperience: false,
     simulationEvents: [],
     startedAt,
@@ -140,6 +148,14 @@ export function buildDraft(overrides: Partial<QuestionnaireDraft> = {}): Questio
     ratingPlan: ratings.map((r) => r.profileId),
     profileRatings: ratings,
     overall: { q8: 4, q9: 'privacy_exposure', q10: '' },
+    // 自由自选配置：默认取 C6（X1=0, X2=1, X3=0），字段均为合法值
+    customConfig: {
+      X1: 0,
+      X2: 1,
+      X3: 0,
+      matchedProfileId: 'C6',
+      responseDurationMs: 6400,
+    },
     priorExperience: false,
     simulationEvents: [],
     startedAt: now,

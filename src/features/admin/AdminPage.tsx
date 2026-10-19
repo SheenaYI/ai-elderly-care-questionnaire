@@ -5,6 +5,7 @@ import {
   Download,
   FileSpreadsheet,
   Info,
+  Layers,
   LoaderCircle,
   LogOut,
   LockKeyhole,
@@ -37,12 +38,23 @@ import { config } from '@/lib/config'
  *   - 前端只持有 anon 公钥；service_role key 只存在于服务端环境变量。
  */
 
-type ExportDataset = 'participants' | 'dce_choices' | 'profile_ratings' | 'long_format' | 'merged'
+type ExportDataset =
+  | 'participants'
+  | 'dce_choices'
+  | 'profile_ratings'
+  | 'custom_config'
+  | 'long_format'
+  | 'merged'
 
 const EXPORT_OPTIONS: { key: ExportDataset; label: string; detail: string }[] = [
   { key: 'participants', label: 'participants.csv', detail: '参与者基本信息、卷别、提交状态、填写时长' },
   { key: 'dce_choices', label: 'dce_choices.csv', detail: 'DCE 选择题记录（含实际左右配置与所选配置）' },
   { key: 'profile_ratings', label: 'profile_ratings.csv', detail: '4 个配置 × 12 量表题的评分' },
+  {
+    key: 'custom_config',
+    label: 'custom_config.csv',
+    detail: '参与者自由设定的理想配置（三个开关 + 匹配编码 + 耗时）',
+  },
   { key: 'long_format', label: 'analysis_long.csv', detail: '长格式数据，可直接用于条件 Logit 分析' },
   { key: 'merged', label: 'merged_analysis.csv', detail: '合并为每位参与者一行的宽格式分析数据' },
 ]
@@ -614,6 +626,67 @@ export default function AdminPage() {
                 </div>
               </section>
             </div>
+
+            {/* ── 模块六：理想配置分布 ─────────────────────── */}
+            <section aria-labelledby="admin-custom">
+              <h2 id="admin-custom" className="flex items-center gap-2 text-[1.15rem] font-semibold text-forest-800">
+                <Layers className="h-5 w-5" aria-hidden="true" />
+                理想配置自由设定（模块六）
+              </h2>
+              <p className="mt-1.5 text-[0.88rem] leading-relaxed text-sage-700">
+                参与者最后自己拼出的配置分布。可与 DCE 的选择分布对照，
+                看出"理想偏好"与"被迫权衡时的实际选择"之间的差距。
+                完成该部分的人数：{stats.customConfig.total}
+                {stats.customConfig.averageDurationMs !== null && (
+                  <> · 平均耗时 {formatDuration(stats.customConfig.averageDurationMs)}</>
+                )}
+              </p>
+
+              <div className="mt-3.5 grid gap-3 lg:grid-cols-2">
+                <div className="rounded-surface border border-sage-200 bg-white p-4">
+                  <p className="text-[0.9rem] font-semibold text-forest-800">各配置被自由选择次数</p>
+                  <ul className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-1.5">
+                    {stats.customConfig.profileCounts.map((row) => (
+                      <li key={row.profileId} className="flex items-baseline justify-between gap-2 text-[0.88rem]">
+                        <span className="font-mono font-semibold text-forest-800">{row.profileId}</span>
+                        <span className="font-mono tabular-nums text-sage-700">{row.count}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="rounded-surface border border-sage-200 bg-white p-4">
+                  <p className="text-[0.9rem] font-semibold text-forest-800">
+                    三个开关"开"的数量分布
+                  </p>
+                  <p className="mt-1 text-[0.8rem] text-sage-600">
+                    0 = 全关（最低暴露）… 3 = 全开（最高暴露）
+                  </p>
+                  <ul className="mt-2.5 space-y-1.5">
+                    {stats.customConfig.exposureLevelCounts.map((row) => {
+                      const pct =
+                        stats.customConfig.total > 0 ? row.count / stats.customConfig.total : 0
+                      return (
+                        <li key={row.level} className="text-[0.88rem]">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="text-sage-700">{row.level} 个开关开启</span>
+                            <span className="font-mono tabular-nums text-forest-800">
+                              {row.count}（{percent(pct)}）
+                            </span>
+                          </div>
+                          <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-sage-100">
+                            <div
+                              className="h-full rounded-full bg-forest-500"
+                              style={{ width: `${Math.round(pct * 100)}%` }}
+                            />
+                          </div>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              </div>
+            </section>
 
             {/* ── CSV 导出 ─────────────────────────────────── */}
             <section aria-labelledby="admin-export">

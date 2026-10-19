@@ -17,8 +17,15 @@ import type {
  * ⚠️ 本文件是问卷内容的唯一来源。页面组件不得硬编码题目文本。
  */
 
-/** 当前问卷版本号。修改任何研究内容时必须同步升级此版本号。 */
-export const QUESTIONNAIRE_VERSION = 'V1.0'
+/**
+ * 当前问卷版本号。**修改任何研究内容时必须同步升级此版本号。**
+ *
+ * 版本历史：
+ *   V1.0  与《…问卷初稿与DCE实验设计_V1》一致（模块一至五）
+ *   V1.1  新增模块六「理想配置自由设定」（V1.0 之外的设计变更，见
+ *         docs/RESEARCH_NOTES.md E 节）。其余内容与 V1.0 完全相同。
+ */
+export const QUESTIONNAIRE_VERSION = 'V1.1'
 
 // ─────────────────────────────────────────────────────────────
 // 模块一｜知情同意与身份信息
@@ -189,6 +196,70 @@ export const Q10_QUESTION =
   '您认为理想的AI养老监测系统应如何平衡安全、隐私和自主性？'
 
 export const Q10_NOTE = '开放填写，可跳过。'
+
+// ─────────────────────────────────────────────────────────────
+// 模块六｜理想配置自由设定（在 V1.0 之外新增，需研究团队确认）
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * ⚠️ 本部分是**在 V1.0 问卷之外新增的**，不属于原始设计。
+ *    已记录在 docs/RESEARCH_NOTES.md（E 节），便于研究团队在伦理申请与
+ *    分析计划中交代。改动任何一处文案需同步升级 QUESTIONNAIRE_VERSION。
+ */
+export const CUSTOM_CONFIG_TITLE = '您的理想配置'
+
+export const CUSTOM_CONFIG_INTRO =
+  '假设您可以自己设定一套 AI 养老监测系统，您会怎么选？请分别调整下面三个开关，直到它变成您最愿意长期使用的样子。'
+
+export const CUSTOM_CONFIG_NOTE =
+  '三个开关彼此独立，共可组成 8 种配置。所有配置的基础异常识别与报警能力完全相同，差别只在于下面三点。这里没有标准答案。'
+
+/** 三个开关的展示文案（与 DCE 属性一一对应）。 */
+export const CUSTOM_CONFIG_TOGGLES = [
+  {
+    key: 'X1' as const,
+    title: '能看到什么',
+    researchTitle: 'X1 共享层级',
+    offLabel: '仅摘要信息',
+    onLabel: '详细原始数据',
+    offHint: '接收者只看到"疑似跌倒"等简要提示',
+    onHint: '接收者还能看到活动记录与视频',
+  },
+  {
+    key: 'X2' as const,
+    title: '谁能查看',
+    researchTitle: 'X2 共享对象',
+    offLabel: '仅指定子女',
+    onLabel: '子女 + 养老服务机构',
+    offHint: '只有您指定的子女可以查看',
+    onHint: '指定子女与授权养老服务机构都能查看',
+  },
+  {
+    key: 'X3' as const,
+    title: '平时如何监测',
+    researchTitle: 'X3 详细监测方式',
+    offLabel: '异常时详细监测',
+    onLabel: '全天持续详细监测',
+    offHint: '基础检测持续运行，异常时才启动详细记录',
+    onHint: '全天持续进行详细活动监测与记录',
+  },
+] as const
+
+/** 提交前的确认提示。 */
+export const CUSTOM_CONFIG_CONFIRM_HINT =
+  '请确认这就是您最愿意长期使用的配置。确认后进入提交前检查。'
+
+/** 选择部分是否已完成（三个水平都已明确）。 */
+export function isCustomConfigComplete(
+  config: { X1?: number | null; X2?: number | null; X3?: number | null } | null | undefined,
+): boolean {
+  if (!config) return false
+  return (
+    (config.X1 === 0 || config.X1 === 1) &&
+    (config.X2 === 0 || config.X2 === 1) &&
+    (config.X3 === 0 || config.X3 === 1)
+  )
+}
 
 /** Q8 使用的 5 点量表（原文为 1–5）。 */
 export const Q8_LIKERT_OPTIONS: readonly { value: LikertValue; label: string }[] = [

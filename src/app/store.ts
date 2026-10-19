@@ -16,6 +16,7 @@ import type {
   AttributeProfile,
   BlockId,
   ComprehensionRecord,
+  CustomConfigRecord,
   DceChoiceRecord,
   DceTaskDisplayPlan,
   IdentityInfo,
@@ -80,6 +81,7 @@ function createEmptyDraft(priorExperience: boolean): QuestionnaireDraft {
     ratingPlan: [],
     profileRatings: [],
     overall: emptyOverall(),
+    customConfig: null,
     priorExperience,
     simulationEvents: [],
     startedAt: now,
@@ -118,6 +120,9 @@ interface QuestionnaireState {
   setQ8: (value: LikertValue) => void
   setQ9: (value: MainConcern) => void
   setQ10: (value: string) => void
+
+  // ── 模块六：自由自选配置 ─────────────────────────────────
+  setCustomConfig: (record: CustomConfigRecord | null) => void
 
   // ── 模拟埋点 ──────────────────────────────────────────────
   recordSimulationEvent: (event: {
@@ -159,6 +164,7 @@ export const useQuestionnaire = create<QuestionnaireState>((set, get) => ({
         profileRatings: stored.draft.profileRatings ?? [],
         comprehension: stored.draft.comprehension ?? [],
         simulationEvents: stored.draft.simulationEvents ?? [],
+        customConfig: stored.draft.customConfig ?? null,
       }
       set({ draft, hasRestoredDraft: true, isHydrated: true })
       return
@@ -292,6 +298,10 @@ export const useQuestionnaire = create<QuestionnaireState>((set, get) => ({
     set((state) => ({
       draft: persist({ ...state.draft, overall: { ...state.draft.overall, q10: value } }),
     }))
+  },
+
+  setCustomConfig: (record) => {
+    set((state) => ({ draft: persist({ ...state.draft, customConfig: record }) }))
   },
 
   recordSimulationEvent: ({ taskId, profileId, eventType, durationMs = null, source }) => {

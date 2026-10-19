@@ -47,6 +47,7 @@ alter table public.comprehension_checks  enable row level security;
 alter table public.simulation_events     enable row level security;
 alter table public.survey_responses      enable row level security;
 alter table public.survey_sessions       enable row level security;
+alter table public.custom_config_choices  enable row level security;
 
 
 -- ───────────────────────────────────────────────────────────────────────────
@@ -190,6 +191,18 @@ create policy survey_sessions_select_admins on public.survey_sessions
   using (public.is_research_admin());
 comment on policy survey_sessions_select_admins on public.survey_sessions is
   '保护对象：问卷会话/重试审计记录（含 User-Agent）。仅白名单管理员可读；写入只经 submit_survey()。';
+
+-- ───────────────────────────────────────────────────────────────────────────
+-- 模块六：自由自选配置（V1.0 之外新增）
+-- ───────────────────────────────────────────────────────────────────────────
+-- 与研究数据表同等保护：仅白名单管理员可读；写入只经 submit_survey()。
+
+drop policy if exists custom_config_choices_select_admins on public.custom_config_choices;
+create policy custom_config_choices_select_admins on public.custom_config_choices
+  for select to authenticated
+  using (public.is_research_admin());
+comment on policy custom_config_choices_select_admins on public.custom_config_choices is
+  '保护对象：参与者自由设定的理想配置（三个开关）。仅白名单管理员可读；写入只经 submit_survey()。';
 
 
 -- ───────────────────────────────────────────────────────────────────────────

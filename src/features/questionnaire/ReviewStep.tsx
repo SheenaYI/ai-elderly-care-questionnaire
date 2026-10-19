@@ -18,6 +18,7 @@ import { dataModeNotice } from '@/lib/config'
 import { TASKS_PER_BLOCK, PROFILES_PER_PARTICIPANT } from '@/data/dceTasks'
 import { SCALE_ITEM_COUNT } from '@/data/scales'
 import { Q9_CONCERNS, Q8_LIKERT_OPTIONS } from '@/data/questionnaire'
+import { ATTRIBUTE_BY_KEY } from '@/data/profiles'
 
 /**
  * 提交前检查页。
@@ -146,6 +147,11 @@ export default function ReviewStep({
             detail="Q8 总体采纳意愿、Q9 最担心的问题均已作答（Q10 可跳过）。"
             done={completion.overall}
           />
+          <CheckRow
+            label="您的理想配置"
+            detail="三个开关（共享层级 / 共享对象 / 详细监测方式）已设定为您最愿意长期使用的组合。"
+            done={completion.customConfig}
+          />
         </ul>
 
         {showIncomplete && !completion.complete && (
@@ -240,6 +246,23 @@ export default function ReviewStep({
               {draft.overall.q9
                 ? Q9_CONCERNS.find((c) => c.value === draft.overall.q9)?.label ?? '—'
                 : '—'}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[0.85rem] font-medium text-sage-700">您的理想配置</dt>
+            <dd className="mt-0.5 text-[0.95rem] font-semibold text-forest-900">
+              {draft.customConfig ? (
+                <>
+                  {draft.customConfig.matchedProfileId ?? '—'}
+                  <span className="ml-2 font-normal text-sage-700">
+                    （{ATTRIBUTE_BY_KEY.X1.levels[draft.customConfig.X1].label}·
+                    {ATTRIBUTE_BY_KEY.X2.levels[draft.customConfig.X2].label}·
+                    {ATTRIBUTE_BY_KEY.X3.levels[draft.customConfig.X3].label}）
+                  </span>
+                </>
+              ) : (
+                '—'
+              )}
             </dd>
           </div>
           <div>

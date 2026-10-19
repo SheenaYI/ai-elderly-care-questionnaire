@@ -83,6 +83,26 @@ export const DCE_CHOICE_QUESTION = '您更愿意长期采用哪一种配置？'
 export const SIMULATION_DISCLAIMER =
   '此过程为研究用预设模拟，不代表真实AI识别、报警或视频记录结果。'
 
+/**
+ * 由三个属性水平反查配置编码。
+ *
+ * C1–C8 恰好覆盖 2×2×2 的全部 8 种组合，因此任何合法的 (X1,X2,X3) 都必然
+ * 对应恰好一个编码。自由自选配置用它来判断参与者"拼"出的配置是哪一个。
+ * 若传入非法水平（理论上不会发生），返回 null。
+ */
+export function profileIdForAttributes(
+  x1: number,
+  x2: number,
+  x3: number,
+): ProfileId | null {
+  if (![0, 1].includes(x1) || ![0, 1].includes(x2) || ![0, 1].includes(x3)) return null
+  const found = PROFILE_IDS.find((id) => {
+    const p = PROFILES[id]
+    return p.X1 === x1 && p.X2 === x2 && p.X3 === x3
+  })
+  return found ?? null
+}
+
 // ─────────────────────────────────────────────────────────────
 // 设计完整性自查（在测试与开发时运行，不在运行时阻塞用户）
 // ─────────────────────────────────────────────────────────────
