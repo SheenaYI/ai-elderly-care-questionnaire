@@ -60,7 +60,7 @@
 | 表单校验 | Zod（前后端共用同一套校验规则：前端提交前自检，服务端独立复核） |
 | 后端 | Supabase（PostgreSQL + Auth + Row Level Security） |
 | 服务端接口 | `api/` 目录下的 Serverless Function（Vercel 自动识别）：提交与 CSV 导出 |
-| 测试 | Vitest + jsdom（11 个测试文件，241 个断言，含页面渲染、主视觉几何、草稿持久化、视频降级、Netlify 适配层与模块六测试） |
+| 测试 | Vitest + jsdom（11 个测试文件，244 个断言，含页面渲染、主视觉几何、草稿持久化、视频降级、Netlify 适配层与模块六测试） |
 | 图标 | lucide-react |
 
 > 说明：表单状态由 Zustand 统一管理，校验全部由 Zod 完成（前后端共用同一套规则），
@@ -139,7 +139,7 @@ npm test                                 # 运行测试
 - 服务端接口：`POST /api/submit-survey`（唯一写入通道，服务端权威校验）与
   `GET /api/admin/export`（需登录 + `research_admins` 白名单，导出带 BOM 的 CSV）
 - 研究管理后台：邮箱密码登录、统计面板、上线前检查、逐题选择分布与导出入口
-- 测试：11 个 Vitest 测试文件、241 个断言（设计完整性、随机化、数据一致性、校验规则、
+- 测试：11 个 Vitest 测试文件、244 个断言（设计完整性、随机化、数据一致性、校验规则、
   草稿持久化与恢复、
   页面渲染），`npm run typecheck` 与 `npm test` 当前均通过
 

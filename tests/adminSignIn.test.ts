@@ -165,4 +165,32 @@ describe('登录错误分类', () => {
     expect(logged).not.toContain('secret@example.com')
     expect(logged).not.toContain('super-secret-password')
   })
+
+  it('HTTP 401（anon key 与项目不匹配）不应被误报为密码错误', async () => {
+    // 这是实战中最隐蔽的一种：url 与 key 来自不同项目，
+    // 认证在检查密码之前就被拒绝。
+    nextSignInResult = { error: { status: 401 } }
+    await renderLogin()
+    const text = await submit('a@example.com', 'whatever')
+    expect(text).toContain('连接被拒绝')
+    expect(text).toContain('VITE_SUPABASE_ANON_KEY')
+    expect(text).not.toContain('邮箱或密码不正确')
+  })
+
+  it('HTTP 403 同样提示配置不匹配', async () => {
+    nextSignInResult = { error: { status: 403 } }
+    await renderLogin()
+    const text = await submit('a@example.com', 'whatever')
+    expect(text).toContain('连接被拒绝')
+  })
+
+  it('HTTP 5xx（项目被暂停）提示去控制台 Restore', async () => {
+    nextSignInResult = { error: { status: 503 } }
+    await renderLogin()
+    const text = await submit('a@example.com', 'whatever')
+    expect(text).toContain('暂时不可用')
+    expect(text).toContain('Restore')
+    expect(text).not.toContain('邮箱或密码不正确')
+  })
+
 })

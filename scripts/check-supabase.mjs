@@ -105,19 +105,60 @@ if (serviceLooksLikeAnon) bad('service_role 与 anon key 完全相同——很�
 
 if (failed) { console.log('\n请先修好配置再继续。\n'); process.exit(1) }
 
-// ── 4. 连通性 ──────────────────────────────────────────────────────────
-console.log('\n【2】检查能否连到 Supabase')
+// ── 4. 连通性 + anon key 是否被项目接受 ────────────────────────────────
+console.log('\n【2】检查能否连到 Supabase，以及 anon key 是否被该项目接受')
+
+// 4a. 项目是否存活（不校验 key）
 try {
-  const res = await fetch(`${url.replace(/\/$/, '')}/auth/v1/health`, {
+  const health = await fetch(`${url.replace(/\/$/, '')}/auth/v1/health`, {
     headers: { apikey: anonKey },
     signal: AbortSignal.timeout(10000),
   })
-  if (res.ok) ok(`认证服务可达（HTTP ${res.status}）`)
-  else warn(`认证服务返回 HTTP ${res.status}（不一定是错误，继续下一步）`)
+  if (health.status >= 500) {
+    bad(`认证服务返回 HTTP ${health.status} —— 项目可能已被暂停`)
+    console.log('  → 免费项目长期无访问会被暂停。到 Supabase 控制台执行 Restore 后重试。\n')
+    process.exit(1)
+  }
+  ok(`认证服务可达（HTTP ${health.status}）`)
 } catch (e) {
   bad(`无法连接：${e instanceof Error ? e.message : String(e)}`)
-  console.log('  → 检查网络、代理，或 URL 是否填写正确。\n')
+  console.log('  → 检查网络、代理，或 VITE_SUPABASE_URL 是否填写正确。\n')
   process.exit(1)
+}
+
+// 4b. 用一个需要鉴权的端点验证 anon key。
+//     这是最容易被忽略的一环：url 和 key 来自不同项目时，
+//     登录会返回 401，而页面会误报"密码错误"。
+try {
+  const probe = await fetch(`${url.replace(/\/$/, '')}/auth/v1/settings`, {
+    headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
+    signal: AbortSignal.timeout(10000),
+  })
+  if (probe.status === 401 || probe.status === 403) {
+    bad(`anon key 被该项目拒绝（HTTP ${probe.status}）`)
+    console.log('  → 说明 VITE_SUPABASE_URL 与 VITE_SUPABASE_ANON_KEY 不是同一个项目的，')
+    console.log('     或 key 复制不完整（漏了尾部字符）。')
+    console.log('  → 对照 Supabase → Project Settings → API：URL 与 anon public 必须同属一个项目。')
+    console.log('  → 另外确认用的是 anon public，而不是 service_role。\n')
+    process.exit(1)
+  }
+  if (probe.ok) {
+    const settings = await probe.json().catch(() => null)
+    ok('anon key 被项目接受')
+    if (settings && settings.external) {
+      const emailOn = settings.external.email === true
+      if (emailOn) ok('项目已启用邮箱密码登录')
+      else {
+        bad('项目未启用邮箱密码登录（external.email = false）')
+        console.log('  → Authentication → Sign In / Providers → 启用 Email。\n')
+        process.exit(1)
+      }
+    }
+  } else {
+    warn(`anon key 探测返回 HTTP ${probe.status}（继续，但请留意）`)
+  }
+} catch (e) {
+  warn(`无法完成 anon key 探测：${e instanceof Error ? e.message : String(e)}`)
 }
 
 // ── 5. 尝试登录 ────────────────────────────────────────────────────────

@@ -120,7 +120,28 @@ export function useAdminAuth() {
           '该项目未启用邮箱密码登录。请在 Supabase 控制台的 Authentication → Sign In / Providers 中启用 Email。',
       }
     }
-    // 网络/DNS/CORS 等：没有 code 且不是凭据错误
+    // ── 配置类问题（最容易被误判成"密码错误"）─────────────────────────
+    //
+    // 401 / 403：通常**不是**账号问题，而是 **anon key 与项目 URL 不匹配**
+    //   （例如 key 来自另一个项目、复制不全、或填成了 service_role）。
+    // 这类错误发生在认证之前，密码对不对根本还没被检查。
+    if (status === 401 || status === 403) {
+      return {
+        error:
+          '连接被拒绝：VITE_SUPABASE_URL 与 VITE_SUPABASE_ANON_KEY 可能不匹配（或 key 复制不完整）。' +
+          '请确认两者来自同一个 Supabase 项目，且用的是 anon public 而不是 service_role。',
+      }
+    }
+    // 5xx：项目可能已被暂停（免费项目长期无访问会暂停）或服务暂时不可用
+    if (status >= 500) {
+      return {
+        error:
+          'Supabase 服务暂时不可用（HTTP ' +
+          String(status) +
+          '）。免费项目长期无访问会被暂停，请到 Supabase 控制台确认项目状态，必要时执行 Restore。',
+      }
+    }
+    // 网络/DNS/CORS：没有 code 也没有 status
     if (!code && status === 0) {
       return {
         error:
