@@ -86,6 +86,14 @@ console.log('\n【1】检查 .env 配置')
 if (!url) bad('缺少 VITE_SUPABASE_URL（或 SUPABASE_URL）')
 else if (/your-project-ref|example\.com/i.test(url)) {
   bad('URL 仍是 .env.example 里的占位符，请换成真实的 Project URL')
+} else if (/\/(rest|auth|storage|realtime|functions)\/v1/i.test(url)) {
+  // 这是实测中真实发生过的错误：从 API 页面复制了 "RESTful endpoint"，
+  // 它带 /rest/v1 后缀。supabase-js 会在 base URL 后面直接拼 /auth/v1，
+  // 于是请求变成 https://x.supabase.co/rest/v1/auth/v1 → 404/401，
+  // 登录失败而界面会显示成"密码错误"。
+  bad(`URL 带了服务路径后缀，必须去掉：${url}`)
+  console.log('  → 只保留到域名：https://<ref>.supabase.co')
+  console.log('  → 因为 supabase-js 会自己拼 /auth/v1、/rest/v1，带了后缀会变成 /rest/v1/auth/v1')
 } else if (!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(url)) {
   warn(`VITE_SUPABASE_URL 格式可疑：${url}`)
   warn('  正常形如 https://abcdefgh.supabase.co（不要带 /rest/v1/ 等后缀）')

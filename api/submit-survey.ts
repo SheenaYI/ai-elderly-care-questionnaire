@@ -321,8 +321,33 @@ interface ServerEnv {
  * 任何缺失或格式非法都返回 null（调用方转为 503 / demo），
  * 且**不**把值写进日志或响应。
  */
+/**
+ * 归一化 SUPABASE_URL。
+ *
+ * 实测中真实出现过两种错误填法：
+ *   1. 末尾带斜杠          https://x.supabase.co/
+ *   2. 带了服务路径后缀    https://x.supabase.co/rest/v1
+ *
+ * 第 2 种是致命的：supabase-js 会在 base URL 后直接拼 `/auth/v1`、`/rest/v1`，
+ * 于是请求变成 `/rest/v1/rest/v1/...` → 404，接口全部失败。
+ * 这里主动剥掉多余的路径与斜杠，避免把配置错误变成难以定位的运行时故障。
+ * 仍然只支持标准 Supabase 域名形态：https://<ref>.supabase.co
+ */
+function normalizeSupabaseUrl(raw: string | undefined): string | null {
+  const trimmed = raw?.trim()
+  if (!trimmed) return null
+  try {
+    const parsed = new URL(trimmed)
+    // 只保留 origin；丢弃任何路径（/rest/v1、/auth/v1 等）与末尾斜杠
+    return parsed.origin
+  } catch {
+    // 不是合法 URL：交给后续逻辑按"未配置"处理，而不是带着脏值发请求
+    return null
+  }
+}
+
 function readServerEnv(): ServerEnv | null {
-  const url = process.env.SUPABASE_URL?.trim()
+  const url = normalizeSupabaseUrl(process.env.SUPABASE_URL)
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
   if (!url || !serviceRoleKey) return null
   try {

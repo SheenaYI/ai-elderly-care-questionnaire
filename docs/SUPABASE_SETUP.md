@@ -579,6 +579,42 @@ select id, is_active from public.questionnaire_versions;
 
 **只有登录成功后才轮到白名单。** 登录成功但看到"无访问权限"，才去查 9.6。
 
+### 9.5a ⚠️ 最常见的填错：URL 多带了 `/rest/v1`
+
+Supabase 的 API 页面会显示好几段地址，容易复制错：
+
+| 页面上的名字 | 值 | 能用吗 |
+|---|---|---|
+| **Project URL** | `https://<ref>.supabase.co` | ✅ **只能用这个** |
+| RESTful endpoint | `https://<ref>.supabase.co/rest/v1` | ❌ 不能 |
+| GraphQL endpoint | `https://<ref>.supabase.co/graphql/v1` | ❌ 不能 |
+
+**为什么带后缀会坏**：`supabase-js` 的 `createClient` 会在 base URL **后面直接拼接**
+各服务路径（源码里写死）：
+
+```js
+this.authUrl    = `${_supabaseUrl}/auth/v1`
+this.storageUrl = `${_supabaseUrl}/storage/v1`
+```
+
+于是：
+
+```
+正确  https://abc.supabase.co        →  https://abc.supabase.co/auth/v1        ✅
+错误  https://abc.supabase.co/rest/v1 →  https://abc.supabase.co/rest/v1/auth/v1 ❌ 404/401
+```
+
+**后果**：登录会失败，而旧版界面把它显示成"邮箱或密码不正确"——
+于是你会一直怀疑密码，实际是 URL 填错了。
+
+**现在的处理**：
+
+1. 前端：诊断脚本会直接报"URL 带了服务路径后缀，必须去掉"
+2. 服务端：`api/` 的两个接口会**自动剥掉路径与末尾斜杠**，只保留
+   `https://<ref>.supabase.co`，避免把配置错误变成难以定位的运行时故障
+
+**建议**：四个变量里的两个 URL 都改成不带后缀的形态，保持一致。
+
 ### 9.5b 邮箱已确认，登录仍失败：其余可能
 
 按发生概率排序。**前两条最容易被误判成"密码错误"**。
