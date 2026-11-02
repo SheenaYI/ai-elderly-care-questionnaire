@@ -10,6 +10,8 @@
  *   - 本文件不读取、不打印、不记录任何密钥值。
  */
 
+import { SURVEY_VERSION } from '@/features/surveyV23/content'
+
 interface RuntimeConfig {
   /** Supabase 项目 URL，未配置时为 null。 */
   supabaseUrl: string | null
@@ -40,7 +42,7 @@ export const config: RuntimeConfig = {
     return Boolean(this.supabaseUrl && this.supabaseAnonKey)
   },
   submitEndpoint: readEnv('VITE_SUBMIT_ENDPOINT') ?? '/api/submit-survey',
-  questionnaireVersion: readEnv('VITE_QUESTIONNAIRE_VERSION') ?? 'V1.0',
+  questionnaireVersion: SURVEY_VERSION,
   // Demo 模式默认仅在开发环境开放；生产环境必须配置后端。
   allowDemoMode:
     readEnv('VITE_ALLOW_DEMO_MODE') === 'true' ||

@@ -24,12 +24,14 @@ import {
 
 export default function SimulationModal({
   profileId,
+  presentationLabel,
   taskId,
   source,
   onClose,
   onEvent,
 }: {
   profileId: ProfileId
+  presentationLabel?: string
   /** 若在 DCE 中打开，记录对应任务；独立体验页为 null。 */
   taskId: TaskId | null
   source: 'dce' | 'experience'
@@ -190,7 +192,7 @@ export default function SimulationModal({
               id="simulation-dialog-title"
               className="truncate text-[1rem] font-semibold text-forest-800 sm:text-[1.1rem]"
             >
-              AI养老监测运行模拟｜{profileId}
+              AI养老监测运行模拟｜{presentationLabel ?? profileId}
             </h2>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -220,10 +222,11 @@ export default function SimulationModal({
               type="button"
               data-autofocus
               onClick={handleClose}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-panel text-forest-800 transition hover:bg-forest-50"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-panel px-3 text-forest-800 transition hover:bg-forest-50"
               aria-label="退出模拟并返回问卷"
             >
               <X className="h-5 w-5" aria-hidden="true" />
+              <span>收起动态模拟</span>
             </button>
           </div>
         </header>

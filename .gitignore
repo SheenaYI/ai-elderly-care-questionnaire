@@ -6,6 +6,7 @@ dist/
 # 旧 HTML 原型的本机备份（仅供研究团队留存参考，不属于本项目源码）
 # 复制到你本机其他位置后可以删除整个 work/ 目录
 work/legacy-prototype-backup/
+work/v23-qa/
 .DS_Store
 **/.DS_Store
 

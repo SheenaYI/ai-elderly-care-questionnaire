@@ -7,7 +7,7 @@ import HomePage from '@/pages/HomePage'
 import ExperiencePage from '@/pages/ExperiencePage'
 import AboutPage from '@/pages/AboutPage'
 import PrivacyPage from '@/pages/PrivacyPage'
-import QuestionnairePage from '@/pages/QuestionnairePage'
+import SurveyEntry, { SurveyRoute } from '@/features/surveyV23/SurveyPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 
 /**
@@ -41,8 +41,9 @@ export default function AppRoutes() {
           {/* 页面四：隐私与知情同意 */}
           <Route path="/privacy" element={<PrivacyPage />} />
           {/* 问卷流程（五个模块） */}
-          <Route path="/questionnaire" element={<QuestionnairePage />} />
-          <Route path="/questionnaire/:step" element={<QuestionnairePage />} />
+          <Route path="/questionnaire" element={<SurveyEntry />} />
+          <Route path="/survey/:respondent" element={<SurveyRoute />} />
+          <Route path="/questionnaire/:respondent" element={<SurveyRoute />} />
           {/* 页面五：独立的研究管理后台 */}
           <Route
             path="/admin"

@@ -14,8 +14,8 @@ import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import { ButtonLink } from '@/components/ui/Button'
 import { ATTRIBUTE_DEFINITIONS, UNIFIED_PREMISES } from '@/data/profiles'
-import { SCALE_ITEMS } from '@/data/scales'
 import { CONSTRUCTS } from '@/data/scales'
+import { ATTRIBUTE_COPY, BASIC_SCENARIO, RATINGS, type ItemId } from '@/features/surveyV23/content'
 
 /**
  * 页面三：研究介绍
@@ -128,12 +128,12 @@ export default function AboutPage() {
                 {construct.direction}
               </p>
               <ul className="mt-3 space-y-2">
-                {construct.items.map((itemId) => {
-                  const item = SCALE_ITEMS.find((i) => i.id === itemId)
+                {construct.items.slice(0, 2).map((itemId) => {
+                  const text = RATINGS.caregiver[itemId.toLowerCase() as ItemId]
                   return (
                     <li key={itemId} className="text-[0.88rem] leading-relaxed text-sage-700">
                       <span className="font-mono text-[0.78rem] text-sage-500">{itemId}</span>{' '}
-                      {item?.text}
+                      {text}
                     </li>
                   )
                 })}
@@ -179,7 +179,7 @@ export default function AboutPage() {
                       </p>
                       <p className="mt-1 text-[1rem] font-semibold text-forest-900">{value.label}</p>
                       <p className="mt-1.5 text-[0.88rem] leading-relaxed text-sage-700">
-                        {value.description}
+                        {ATTRIBUTE_COPY[definition.key].clauses[level]}。
                       </p>
                     </div>
                   )
@@ -192,7 +192,7 @@ export default function AboutPage() {
         <Card tone="champagne" className="mt-5">
           <h3 className="text-[1rem] font-semibold text-champagne-800">统一前提（务必理解）</h3>
           <p className="mt-2 text-[0.95rem] leading-8 text-champagne-800">
-            {UNIFIED_PREMISES.sharedCapability}
+            {BASIC_SCENARIO}
           </p>
           <ul className="mt-3 space-y-2">
             {UNIFIED_PREMISES.items.map((item) => (

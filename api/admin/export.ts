@@ -37,6 +37,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
+import { exportV23, V23_DATASETS, type V23Dataset, type V23Row } from '../../src/features/surveyV23/analysis'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -71,7 +72,7 @@ const MAX_EXPORT_ROWS = 200_000
 const CSV_BOM = '\uFEFF'
 const CSV_NEWLINE = '\r\n'
 
-type DatasetName =
+type DatasetName = V23Dataset
   | 'participants'
   | 'dce_choices'
   | 'profile_ratings'
@@ -85,6 +86,7 @@ type DatasetName =
  * 保留它可以让两种命名都能导出同一份长表数据。
  */
 const DATASET_ALIASES: Record<string, DatasetName> = {
+  ...Object.fromEntries(V23_DATASETS.map(k => [k, k])),
   participants: 'participants',
   dce_choices: 'dce_choices',
   profile_ratings: 'profile_ratings',
@@ -702,6 +704,17 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
 
   // 12.4 生成 CSV
   try {
+    if (V23_DATASETS.includes(dataset as V23Dataset)) {
+      const result = await fetchRows(supabase, 'survey_v23_submissions', ['participant_id','survey_version','respondent_type','sample_channel','split_version','started_at','submitted_at','payload'], ['participant_id'])
+      if (!result.ok) { sendJson(res, 500, { ok: false, message: result.message }); return }
+      const type = readQueryParam(req, 'respondent_type'), channel = readQueryParam(req, 'sample_channel'), revision = readQueryParam(req, 'instrument_revision')
+      if (revision && !['all','legacy','2026-11-02'].includes(revision)) { sendJson(res, 400, {ok:false,message:'问卷修订筛选无效。'}); return }
+      if ((type && !['elder','caregiver','all'].includes(type)) || (channel && !['formal','pilot','test','all'].includes(channel))) { sendJson(res, 400, { ok: false, message: '筛选参数无效。' }); return }
+      const rows = (result.rows as unknown as V23Row[]).filter(r => r.survey_version === 'V2.3' && (!revision || revision === 'all' || (r.payload.instrument_revision ?? 'legacy') === revision) && (!type || type === 'all' || r.respondent_type === type) && (channel === 'all' || r.sample_channel === (channel || 'formal')))
+      const exported = exportV23(rows, dataset as V23Dataset)
+      sendCsv(res, dataset, toCsv(exported.columns, exported.rows))
+      return
+    }
     if (dataset === 'merged') {
       const merged = await buildMergedRows(supabase)
       if (!merged.ok) {

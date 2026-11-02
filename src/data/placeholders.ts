@@ -78,6 +78,7 @@ export const DATA_RETENTION = field(
   '数据保存期限',
   '[待填写：数据保存期限]',
   '填写研究数据的保存起止期限（例如：自收集之日起 3 年，到期后销毁）。',
+  '数据仅用于学术研究，匿名保存，结题后一年内删除。',
 )
 
 export const DATA_ACCESS_SCOPE = field(

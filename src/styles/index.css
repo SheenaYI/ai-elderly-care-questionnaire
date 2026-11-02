@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+.survey-v23-progress { appearance: none; overflow: hidden; border: 0; border-radius: 4px; background: #d6ddd3; color: #285b4e; }
+.survey-v23-progress::-webkit-progress-bar { background: #d6ddd3; }
+.survey-v23-progress::-webkit-progress-value { background: #285b4e; }
+.survey-v23-progress::-moz-progress-bar { background: #285b4e; }
+
 /*
  * 全局样式
  *
@@ -122,6 +127,54 @@
   }
   .prose-cn p:last-child {
     margin-bottom: 0;
+  }
+}
+
+/* 问卷：老人版优先保证可读性，不压缩研究题目。 */
+.survey-help summary {
+  cursor: pointer;
+  min-height: 48px;
+  padding-block: 8px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.survey-v23--elder .survey-question {
+  font-size: 1.375rem;
+  line-height: 1.65;
+}
+.survey-v23--elder .survey-option {
+  min-height: 68px;
+  font-size: 1.25rem;
+  line-height: 1.65;
+}
+.survey-v23--elder .survey-description,
+.survey-v23--elder section > p,
+.survey-v23--elder .survey-help {
+  font-size: 1.25rem;
+  line-height: 1.8;
+}
+.survey-v23--elder h2 { font-size: 1.5rem; line-height: 1.5; }
+.survey-v23--elder input[type="radio"]:not(.survey-card-selector),
+.survey-v23--elder input[type="checkbox"] { width: 22px; height: 22px; }
+.survey-v23--elder button { min-height: 56px; font-size: 1.125rem; }
+.survey-v23--elder .survey-rating-scale { font-size: 1.125rem; }
+.survey-level--basic { background: #f3f6f2; }
+.survey-level--expanded { background: #eaf2fa; }
+.survey-level--different { outline: 1px solid #8b7550; outline-offset: -1px; }
+.survey-attribute-visual { color: #254c44; font-size: 1.125rem; line-height: 1.6; }
+.survey-level--expanded .survey-attribute-visual { color: #244b71; }
+.survey-configuration:has(.survey-card-selector:focus-visible) { outline: 3px solid #315c50; outline-offset: 4px; }
+.survey-configuration:has(.survey-card-selector):hover { border-color: #315c50; }
+@media (min-width: 1024px) {
+  @supports (grid-template-rows: subgrid) {
+    .survey-dce-comparison > .survey-configuration {
+      display: grid;
+      grid-template-rows: subgrid;
+      grid-row: span 5;
+      row-gap: 12px;
+    }
+    .survey-dce-comparison > .survey-configuration > dl { display: contents; }
+    .survey-dce-comparison > .survey-configuration > dl > div { margin-top: 0; }
   }
 }
 

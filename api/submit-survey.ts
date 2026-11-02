@@ -34,7 +34,9 @@ import { createClient } from '@supabase/supabase-js'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { submissionSchema, validateSubmissionSemantics } from '../src/lib/validation/schemas'
 import type { SemanticProblem, SubmissionInput } from '../src/lib/validation/schemas'
-import { COMPREHENSION_QUESTION_BY_ID, QUESTIONNAIRE_VERSION } from '../src/data/questionnaire'
+import { COMPREHENSION_QUESTION_BY_ID } from '../src/data/questionnaire'
+import { v23SubmissionSchema } from '../src/features/surveyV23/validation'
+import { SURVEY_VERSION } from '../src/features/surveyV23/content'
 
 // ───────────────────────────────────────────────────────────────────────────
 // 0. Vercel 函数类型的最小自声明
@@ -391,11 +393,11 @@ async function checkQuestionnaireVersion(
   supabase: SupabaseClient,
   version: string,
 ): Promise<CheckResult> {
-  if (version !== QUESTIONNAIRE_VERSION) {
+  if (version !== SURVEY_VERSION) {
     return {
       ok: false,
       status: 400,
-      message: `问卷版本不匹配（提交 ${version}，当前版本 ${QUESTIONNAIRE_VERSION}）。请刷新页面后重新填写。`,
+      message: `当前仅接收 ${SURVEY_VERSION}（本次为 ${version}）。旧版草稿不会转换为新版答卷，请刷新并从相应入口重新填写。`,
     }
   }
 
@@ -551,6 +553,29 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   }
 
   // 10.5 结构校验（复用前端同一份 zod schema）
+  // V2.3 独立载荷与 RPC；历史 V1.1 路径保留，不把新版答案塞入旧量表。
+  if (body.value && typeof body.value === 'object' && 'survey_version' in body.value) {
+    const parsedV23 = v23SubmissionSchema.safeParse(body.value)
+    if (!parsedV23.success) {
+      sendJson(res, 400, { ok: false, mode: 'supabase', message: 'V2.3 答卷未通过完整性或研究设计校验。', fieldErrors: flattenZodIssues(parsedV23.error.issues) })
+      return
+    }
+    const inputV23 = parsedV23.data
+    const limit = consumeToken(`v23:${ip}|${inputV23.participant_id}`)
+    if (!limit.allowed) { sendJson(res, 429, { ok: false, mode: 'supabase', message: '提交过于频繁，请稍后重试。' }); return }
+    const supabase = getServiceClient(env)
+    const versionCheck = await checkQuestionnaireVersion(supabase, inputV23.survey_version)
+    if (!versionCheck.ok) { sendJson(res, versionCheck.status, { ok: false, mode: 'supabase', message: versionCheck.message }); return }
+    const { error } = await supabase.rpc('submit_survey_v23', { payload: inputV23 })
+    if (error) {
+      logEvent('v23_rpc_failed', error.code)
+      const mapped = mapRpcError(error.code)
+      sendJson(res, mapped.status, { ok: false, mode: 'supabase', message: mapped.message })
+      return
+    }
+    sendJson(res, 200, { ok: true, mode: 'supabase', message: '提交成功，数据已保存到研究数据库。', participantId: inputV23.participant_id })
+    return
+  }
   const parsed = submissionSchema.safeParse(body.value)
   if (!parsed.success) {
     sendJson(res, 400, {

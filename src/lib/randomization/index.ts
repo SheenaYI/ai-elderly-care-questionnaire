@@ -20,13 +20,13 @@ import type {
   ProfileId,
   TaskId,
 } from '@/types'
-import { PROFILES, PROFILE_IDS } from '@/data/profiles'
+import { PROFILES, PROFILE_IDS } from '../../data/profiles'
 import {
   BLOCK_TASK_IDS,
   PROFILES_PER_PARTICIPANT,
   TASK_BY_ID,
   TASKS_PER_BLOCK,
-} from '@/data/dceTasks'
+} from '../../data/dceTasks'
 
 /** 任务编号 → V1.0 表中写明的 A/B 配置配对（不作为展示位置使用）。 */
 const TASK_PAIRS: Record<string, { profileA: ProfileId; profileB: ProfileId }> = Object.fromEntries(

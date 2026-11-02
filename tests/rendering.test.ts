@@ -78,19 +78,24 @@ describe('公共页面渲染', () => {
     const html = await renderPage(createElement(HomePage))
     expect(html).toContain('当 AI 走进养老生活')
     expect(html).toContain('安全、隐私与自主性之间')
-    expect(html).toContain('开始参与研究')
+    expect(html).toContain('老人本人版')
+    expect(html).toContain('家庭照护者版')
     expect(html).toContain('仅用于学术研究')
     expect(html).toContain('自愿参与，可随时退出')
   })
 
-  it('首页"预计填写时间"不编造时长，且不展示占位字段', async () => {
+  it('首页精简重复说明，不展示未确认时长或占位字段', async () => {
     const { default: HomePage } = await import('@/pages/HomePage')
     const html = await renderPage(createElement(HomePage))
     // 仍然标明这一项的存在与状态
-    expect(html).toContain('预计填写时间')
+    expect(html).not.toContain('预计填写时间')
     // 研究团队指定：暂不在页面显示 [待填写：…] 名录，只保留说明
     expect(html).not.toContain('[待填写：')
-    expect(html).toContain('由研究团队试填后确认')
+    expect(html).not.toContain('由研究团队试填后确认')
+    expect(html).not.toContain('全天记录：仅限相应设置')
+    expect(html).toContain('看多细')
+    expect(html).toContain('发给谁')
+    expect(html).toContain('何时记录')
   })
 
   it('首页渲染主视觉（居家养老 + 三个研究维度）并提供等价文字说明', async () => {
@@ -145,21 +150,20 @@ describe('公共页面渲染', () => {
     const html = await renderPage(createElement(PrivacyPage))
     for (const section of [
       '研究目的', '参与方式', '数据收集范围', '数据使用目的',
-      '数据保存期限与访问权限', '退出规则', '研究联系人', '风险说明与您的权益',
+      '数据保存期限与访问权限', '退出规则', '风险说明与您的权益',
     ]) {
       expect(html, `缺少章节：${section}`).toContain(section)
     }
     expect(html).toContain('不会开启您的摄像头')
   })
 
-  it('隐私页说明未确定信息暂不展示且未编造（不显示占位名录）', async () => {
+  it('隐私页不展示团队字段或待补充提示', async () => {
     const { default: PrivacyPage } = await import('@/pages/PrivacyPage')
     const html = await renderPage(createElement(PrivacyPage))
-    expect(html).toContain('未作任何编造')
     // 研究团队指定：暂不显示 [待填写：…] 名录
     expect(html).not.toContain('[待填写：')
-    // 但仍需明确告知这些信息待补充
-    expect(html).toContain('待研究团队补充确认')
+    expect(html).not.toContain('待研究团队补充确认')
+    expect(html).not.toContain('研究联系人')
   })
 
   it('参与者可见页面均不展示待填写占位名录', async () => {

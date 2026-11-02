@@ -26,6 +26,7 @@ import {
 import { ALL_CONFIGURABLE_FIELDS, pendingFields } from '@/data/placeholders'
 import { checkDesignIntegrity } from '@/data/dceTasks'
 import { config } from '@/lib/config'
+import V23AdminPanel from '@/features/surveyV23/AdminPanel'
 
 /**
  * 研究管理后台 /admin
@@ -370,6 +371,8 @@ export default function AdminPage() {
       </header>
 
       <main className="mx-auto max-w-content px-4 py-7 sm:px-6 lg:px-8">
+        <V23AdminPanel />
+        <h2 className="mb-5 text-xl font-semibold text-forest-900">历史 V1.0 / V1.1 数据（与 V2.3 分开）</h2>
         {error && (
           <div className="mb-6 rounded-panel border border-alert-100 bg-alert-50 px-4 py-3" role="alert">
             <p className="text-[0.92rem] text-alert-700">
