@@ -1,4 +1,5 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Check } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { ATTRIBUTE_COPY } from "./content";
 import { autonomyText, type SurveyV23 } from "./model";
@@ -32,7 +33,29 @@ export default function ExperimentStep({
     scenario = d.autonomy_plan[index];
   const [selected, setSelected] = useState<"left" | "right" | null>(null);
   const [autonomyChoice, setAutonomyChoice] = useState<number | null>(null);
-  function move(i: number) {
+  const [notice, setNotice] = useState<{ message: string } | null>(null);
+  const questionHeading = useRef<HTMLParagraphElement>(null);
+  const focusNextQuestion = useRef(false);
+  const completedCount = d.dce_plan.filter((p) =>
+    d.dce_choices.some((c) => c.task_id === p.task_id),
+  ).length;
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(null), 3000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+  useEffect(() => {
+    if (!focusNextQuestion.current) return;
+    focusNextQuestion.current = false;
+    questionHeading.current?.focus({ preventScroll: true });
+    questionHeading.current?.scrollIntoView?.({
+      block: "start",
+      behavior: "instant",
+    });
+  }, [index]);
+  function move(i: number, confirmed = false) {
+    if (!confirmed) setNotice(null);
+    if (!elder) focusNextQuestion.current = true;
     setIndex(i);
     setSelected(null);
     setAutonomyChoice(null);
@@ -48,6 +71,7 @@ export default function ExperimentStep({
     autonomyChoice ??
     (savedAutonomy ? choices.indexOf(savedAutonomy.choice) : null);
   function confirm() {
+    if (elder ? !scenario || choice === null : !task || !side) return;
     if (elder && scenario && choice !== null)
       update({
         ...d,
@@ -77,10 +101,34 @@ export default function ExperimentStep({
           },
         ].sort((a, b) => a.display_order - b.display_order),
       });
-    if (index < plan.length - 1) move(index + 1);
+    if (!elder) {
+      const count = completedCount + (saved ? 0 : 1);
+      setNotice({
+        message:
+          index < plan.length - 1
+            ? `${saved ? "已更新本题选择" : "您已完成一道方案选择"}，已进入第 ${index + 2} 题。`
+            : count === plan.length
+              ? "4 道方案选择已全部完成，请点击“继续下一步”。"
+              : `本题已确认，仍有 ${plan.length - count} 道方案选择未完成。`,
+      });
+    }
+    if (index < plan.length - 1) move(index + 1, true);
   }
   return (
     <div className="space-y-6">
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="pointer-events-none fixed inset-x-4 bottom-6 z-[60] flex justify-center"
+      >
+        {notice && (
+          <div className="survey-dce-notice flex max-w-xl items-center gap-2 rounded-full border px-5 py-3 text-base font-medium leading-6 text-forest-900">
+            <Check aria-hidden="true" className="h-5 w-5 shrink-0" />
+            {notice.message}
+          </div>
+        )}
+      </div>
       {elder && !showScenarios && (
         <section className="rounded-surface bg-white p-5 sm:p-7">
           <h2 className="text-xl font-semibold text-forest-900">您的希望</h2>
@@ -122,11 +170,30 @@ export default function ExperimentStep({
               自己决定或先征得子女同意，您的选择会不同吗？
             </h2>
           )}
-          <p className="mt-3 text-lg leading-8 text-sage-800">
-            {elder
-              ? "同组两题的设备设置相同，只改变是否需要子女同意。请按自己的想法作答。"
-              : "二选一即可。"}
-          </p>
+          {elder ? (
+            <p className="mt-3 text-lg leading-8 text-sage-800">
+              同组两题的设备设置相同，只改变是否需要子女同意。请按自己的想法作答。
+            </p>
+          ) : (
+            <div className="space-y-3 text-lg leading-8 text-sage-800">
+              <p>
+                请设想为家中老人长期采用一套 AI 养老监测系统。两套方案的
+                <strong className="font-semibold">
+                  基础异常识别与紧急报警能力相同
+                </strong>
+                ，仅“能看到的信息”“信息发给谁”“监测方式”三个设置有所不同。
+              </p>
+              <p>
+                <strong className="font-semibold">
+                  每题选择您更愿意长期采用的一套方案
+                </strong>
+                ，选好后点击确认。
+              </p>
+              <p className="text-base leading-6">
+                颜色区分设置类别，不表示高低或优劣。
+              </p>
+            </div>
+          )}
           <nav className="my-5 flex flex-wrap gap-2" aria-label="实验题目导航">
             {plan.map((p, i) => (
               <button
@@ -153,7 +220,11 @@ export default function ExperimentStep({
               </button>
             ))}
           </nav>
-          <p className="mb-4 text-base text-sage-800">
+          <p
+            ref={questionHeading}
+            tabIndex={-1}
+            className="mb-4 scroll-mt-28 text-base text-sage-800 focus:outline-none"
+          >
             第 {index + 1} 题 / 共 {plan.length} 题
           </p>
           {elder && scenario ? (
@@ -215,7 +286,7 @@ export default function ExperimentStep({
               />
             </div>
           ) : null}
-          <div className="mt-6 flex flex-wrap justify-between gap-3">
+          <div className="mt-6 flex flex-wrap items-start justify-between gap-3">
             <Button
               variant="secondary"
               disabled={index === 0}
@@ -223,12 +294,46 @@ export default function ExperimentStep({
             >
               上一题
             </Button>
-            <Button
-              disabled={elder ? choice === null : !side}
-              onClick={confirm}
+            <div
+              className={
+                elder ? "contents" : "ml-auto w-full sm:w-auto sm:min-w-64"
+              }
             >
-              {index === plan.length - 1 ? "确认本题" : "确认并进入下一题"}
-            </Button>
+              <Button
+                className={elder ? undefined : "w-full"}
+                disabled={
+                  elder
+                    ? choice === null
+                    : !side ||
+                      (index === plan.length - 1 &&
+                        !!saved &&
+                        side === saved.selected_side)
+                }
+                onClick={confirm}
+              >
+                {index === plan.length - 1 ? "确认本题" : "确认并进入下一题"}
+              </Button>
+              {!elder && (
+                <div className="mt-3" aria-label="方案选择完成进度">
+                  <div className="mb-2 flex justify-between gap-3 text-sm text-sage-800">
+                    <span>
+                      已确认 {completedCount} / {plan.length} 题
+                    </span>
+                    <span>
+                      {completedCount === plan.length
+                        ? "全部完成"
+                        : "选好后请确认"}
+                    </span>
+                  </div>
+                  <progress
+                    aria-label="已确认的方案选择题数"
+                    max={plan.length}
+                    value={completedCount}
+                    className="survey-dce-progress block h-2 w-full overflow-hidden rounded-full"
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </section>
       )}

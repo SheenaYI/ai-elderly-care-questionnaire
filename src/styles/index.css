@@ -167,6 +167,56 @@
 .survey-level--expanded .survey-attribute-visual { color: #244b71; }
 .survey-configuration:has(.survey-card-selector:focus-visible) { outline: 3px solid #315c50; outline-offset: 4px; }
 .survey-configuration:has(.survey-card-selector):hover { border-color: #315c50; }
+/* DCE 的颜色只对应变量，两种水平采用同色，不表达高低。 */
+.survey-dce-comparison [data-attribute="X1"] { background: #edf5ef; }
+.survey-dce-comparison [data-attribute="X2"] { background: #edf3fa; }
+.survey-dce-comparison [data-attribute="X3"] { background: #fcfaf2; }
+.survey-dce-comparison .survey-attribute-visual { color: #254c44; }
+/* 轻立体仅用于 DCE：两侧材质一致，不借视觉效果偏向某套配置。 */
+.survey-dce-comparison > .survey-configuration {
+  border-color: #d8e2db;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(28, 56, 44, .065), inset 0 1px 0 rgba(255, 255, 255, .95);
+  transition: border-color 180ms ease-out, box-shadow 180ms ease-out;
+}
+.survey-dce-comparison > .survey-configuration:has(.survey-card-selector:checked) {
+  border-color: #315c50;
+  box-shadow: 0 8px 24px rgba(28, 56, 44, .12), inset 0 0 0 1px #315c50;
+}
+.survey-dce-comparison > .survey-configuration > h3 {
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5ebe6;
+}
+.survey-dce-comparison .survey-level {
+  border: 1px solid rgba(255, 255, 255, .9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 2px 5px rgba(28, 56, 44, .035);
+}
+.survey-dce-comparison button {
+  border: 1px solid #e1e8e2;
+  background: #f8faf7;
+}
+.survey-dce-comparison button:hover { background: #edf3ed; }
+.survey-dce-notice {
+  border-color: #d5e2d8;
+  background: #f4f9f4;
+  box-shadow: 0 8px 28px rgba(28, 56, 44, .14);
+}
+@supports ((backdrop-filter: blur(12px)) or (-webkit-backdrop-filter: blur(12px))) {
+  .survey-dce-notice {
+    background: rgba(244, 249, 244, .92);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .survey-dce-comparison > .survey-configuration:not(:has(.survey-card-selector:checked)):hover {
+    box-shadow: 0 8px 22px rgba(28, 56, 44, .09), inset 0 1px 0 rgba(255, 255, 255, .95);
+  }
+}
+.survey-dce-progress { appearance: none; border: 0; background: #e5ebe3; color: #315c50; }
+.survey-dce-progress::-webkit-progress-bar { background: #e5ebe3; border-radius: 999px; }
+.survey-dce-progress::-webkit-progress-value { background: #315c50; border-radius: 999px; }
+.survey-dce-progress::-moz-progress-bar { background: #315c50; border-radius: 999px; }
 /* 两侧同一属性保持同一行，手机上无需记住上一张整卡再比较。 */
 @media (min-width: 320px) {
   @supports (grid-template-rows: subgrid) {
