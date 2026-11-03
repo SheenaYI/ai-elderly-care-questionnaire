@@ -21,7 +21,7 @@ export default function EventNotification({
 
   return (
     <aside
-      className="absolute inset-x-3 bottom-3 z-10 rounded-panel border border-champagne-200 bg-champagne-50 p-4 text-forest-900 shadow-modal animate-slide-up sm:inset-x-auto sm:bottom-5 sm:right-5 sm:w-[23rem]"
+      className="absolute inset-x-3 bottom-3 z-10 rounded-panel border border-champagne-200 bg-champagne-50/80 p-4 text-forest-900 shadow-modal backdrop-blur-md animate-slide-up sm:inset-x-auto sm:bottom-5 sm:right-5 sm:w-[23rem]"
       aria-label="异常通知"
       role="status"
     >

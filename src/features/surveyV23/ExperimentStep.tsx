@@ -117,15 +117,15 @@ export default function ExperimentStep({
       )}
       {showScenarios && (
         <section className="rounded-surface bg-white p-5 sm:p-7">
-          <h2 className="text-xl font-semibold text-forest-900">
-            {elder
-              ? "自己决定或先征得子女同意，您的选择会不同吗？"
-              : "系统配置选择"}
-          </h2>
+          {elder && (
+            <h2 className="text-xl font-semibold text-forest-900">
+              自己决定或先征得子女同意，您的选择会不同吗？
+            </h2>
+          )}
           <p className="mt-3 text-lg leading-8 text-sage-800">
             {elder
               ? "同组两题的设备设置相同，只改变是否需要子女同意。请按自己的想法作答。"
-              : "请设想为家中老人长期采用一套 AI 养老监测系统。以下两个方案的基础异常识别与紧急报警能力完全相同，只在上述三个设置上不同，请选择您更愿意采用的一个。"}
+              : "二选一即可。"}
           </p>
           <nav className="my-5 flex flex-wrap gap-2" aria-label="实验题目导航">
             {plan.map((p, i) => (

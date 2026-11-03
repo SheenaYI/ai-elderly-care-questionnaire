@@ -130,7 +130,7 @@ export const ATTRIBUTE_COPY = {
   },
 } as const;
 export const BOUNDARY =
-  "设备什么时候详细记录，由 X3 决定；记录的内容别人能看多细，由 X1 决定；这些信息发给谁，由 X2 决定。三者各管一件事，互不重叠。";
+  "“能看到的信息”是指别人能看多细；“信息发给谁”是指谁能接收；“监测方式”是指什么时候详细记录。三者各管一件事，互不重叠。";
 export const COMMON_PREMISES: Record<
   RespondentType,
   { title: string; items: readonly string[] }

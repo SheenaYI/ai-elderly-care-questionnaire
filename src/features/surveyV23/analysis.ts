@@ -3,6 +3,8 @@ import {
   CHECKS,
   ITEM_IDS,
   TASKS,
+  CONCERNS,
+  WILLINGNESS,
   WEIGHT_KEYS,
   type RespondentType,
 } from "./content";
@@ -267,6 +269,7 @@ export function v23Stats(rows: V23Row[]) {
           (c) => c.selected_configuration_id === c.scheme_b_configuration_id,
         ).length,
         left: choices.filter((c) => c.selected_side === "left").length,
+        right: choices.filter((c) => c.selected_side === "right").length,
       };
     }),
     completion: (["elder", "caregiver"] as const).flatMap((type) =>
@@ -286,7 +289,9 @@ export function v23Stats(rows: V23Row[]) {
             (question_id.endsWith("7") || question_id.endsWith("8")
               ? d.comprehension.some((c) => c.question_id === question_id)
               : d.answers[question_id] !== undefined &&
-                d.answers[question_id] !== ""),
+                d.answers[question_id] !== "" &&
+                (!Array.isArray(d.answers[question_id]) ||
+                  (d.answers[question_id] as string[]).length > 0)),
         ).length,
       })),
     ),
@@ -299,6 +304,7 @@ export function v23Stats(rows: V23Row[]) {
         n: ratings.length,
         means: ITEM_IDS.map((item) => ({
           item,
+          n: ratings.filter((r) => typeof r.scores[item] === "number").length,
           mean: avg(
             ratings
               .map((r) => r.scores[item])
@@ -327,6 +333,11 @@ export function v23Stats(rows: V23Row[]) {
     }),
     weights: WEIGHT_KEYS.map((key) => ({
       key,
+      n: surveys.filter(
+        (d) =>
+          d.weight_allocation.mode === "scores" &&
+          typeof d.weight_allocation.scores[key] === "number",
+      ).length,
       mean: avg(
         surveys
           .filter((d) => d.weight_allocation.mode === "scores")
@@ -337,6 +348,76 @@ export function v23Stats(rows: V23Row[]) {
     rankingOnly: surveys.filter(
       (d) => d.weight_allocation.mode === "ranking_only",
     ).length,
+    preferences: (["X1", "X2", "X3"] as const).map((key) => ({
+      key,
+      counts: [0, 50, 100].map(
+        (value) =>
+          surveys.filter(
+            (d) =>
+              d.respondent_type === "elder" &&
+              d.elder_preferences[key] === value,
+          ).length,
+      ),
+    })),
+    backgrounds: (["elder", "caregiver"] as const).flatMap((type) =>
+      BACKGROUND[type].map((q) => {
+        const group = surveys.filter((d) => d.respondent_type === type);
+        const labels = (d: SurveyV23) =>
+          q.id === "b4" && !d.instrument_revision
+            ? ["独居", "与您同住", "轮流居住", "住在养老机构"]
+            : q.options;
+        const options = [
+          ...new Set([...q.options, ...group.flatMap((d) => labels(d))]),
+        ];
+        return {
+          type,
+          id: q.id,
+          text: q.text,
+          options: options.map((label) => ({
+            label,
+            count: group.filter(
+              (d) =>
+                typeof d.answers[q.id] === "number" &&
+                labels(d)[d.answers[q.id] as number] === label,
+            ).length,
+          })),
+        };
+      }),
+    ),
+    overall: (["elder", "caregiver"] as const).map((type) => {
+      const group = surveys.filter((d) => d.respondent_type === type),
+        prefix = type === "elder" ? "a" : "b";
+      return {
+        type,
+        n: group.length,
+        willingness: WILLINGNESS[type].map((label, index) => ({
+          label,
+          count: group.filter((d) => d.answers[`${prefix}9`] === index).length,
+        })),
+        concerns: CONCERNS[type].map((label, index) => ({
+          label,
+          count: group.filter(
+            (d) =>
+              Array.isArray(d.answers[`${prefix}10`]) &&
+              (d.answers[`${prefix}10`] as string[]).includes(String(index)),
+          ).length,
+        })),
+      };
+    }),
+    rankings: WEIGHT_KEYS.map((key) => ({
+      key,
+      first: surveys.filter(
+        (d) =>
+          d.weight_allocation.mode === "ranking_only" &&
+          d.weight_allocation.ranking[0] === key,
+      ).length,
+    })),
+    comprehension: {
+      firstCorrect: surveys
+        .flatMap((d) => d.comprehension)
+        .filter((c) => c.first_correct).length,
+      total: surveys.flatMap((d) => d.comprehension).length,
+    },
     attentionFailed: surveys.filter(
       (d) =>
         d.answers[d.respondent_type === "elder" ? "a-check" : "b-check"] !== 2,

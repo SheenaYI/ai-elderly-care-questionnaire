@@ -136,7 +136,7 @@ export const SIMULATION_TIMING = {
   /** 进入模拟后，多久自动触发异常事件。 */
   autoEventDelayMs: 2200,
   /** 事件触发后，多久生成通知。 */
-  notifyDelayMs: 1100,
+  notifyDelayMs: 3000,
 } as const
 
 /** 模拟事件视频路径（本地静态资源，缺失时降级为占位界面）。 */

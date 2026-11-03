@@ -184,12 +184,14 @@ export function Configuration({
               data-level={p[k]}
               className={`survey-level rounded-panel p-4 ${p[k] === 1 ? "survey-level--expanded" : "survey-level--basic"} ${different ? "survey-level--different" : ""}`}
             >
-              <dt className="flex flex-wrap items-center gap-2 font-semibold text-forest-800">
+              <dt
+                className={`flex flex-wrap items-center gap-2 font-semibold text-forest-800 ${different ? "survey-difference-heading" : ""}`}
+              >
                 <Icon className="h-5 w-5" aria-hidden="true" />
-                {ATTRIBUTE_COPY[k].title}
+                {ATTRIBUTE_COPY[k].question}
                 {different && (
-                  <span className="ml-auto text-sm text-champagne-800">
-                    不同
+                  <span className="survey-difference-label ml-auto rounded-control px-2 py-1 text-base font-bold">
+                    差异项
                   </span>
                 )}
               </dt>
@@ -224,7 +226,10 @@ export function Configuration({
               className="relative z-20 flex min-h-12 w-full items-center justify-center gap-2 rounded-panel text-forest-800 hover:bg-forest-50"
             >
               <Play className="h-4 w-4" />
-              展开动态模拟
+              <span>
+                展开动态模拟帮助理解
+                <span className="whitespace-nowrap">（可选）</span>
+              </span>
             </button>
           )}
         </div>

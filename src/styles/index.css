@@ -160,13 +160,17 @@
 .survey-v23--elder .survey-rating-scale { font-size: 1.125rem; }
 .survey-level--basic { background: #f3f6f2; }
 .survey-level--expanded { background: #eaf2fa; }
-.survey-level--different { outline: 1px solid #8b7550; outline-offset: -1px; }
+.survey-level--different { outline: 2px solid #8b7550; outline-offset: -2px; }
+.survey-difference-heading { margin: -4px -4px 12px; padding: 8px; border-radius: 8px; background: #f3e7cc; }
+.survey-difference-label { color: #fff; background: #725a30; }
 .survey-attribute-visual { color: #254c44; font-size: 1.125rem; line-height: 1.6; }
 .survey-level--expanded .survey-attribute-visual { color: #244b71; }
 .survey-configuration:has(.survey-card-selector:focus-visible) { outline: 3px solid #315c50; outline-offset: 4px; }
 .survey-configuration:has(.survey-card-selector):hover { border-color: #315c50; }
-@media (min-width: 1024px) {
+/* 两侧同一属性保持同一行，手机上无需记住上一张整卡再比较。 */
+@media (min-width: 320px) {
   @supports (grid-template-rows: subgrid) {
+    .survey-dce-comparison { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .survey-dce-comparison > .survey-configuration {
       display: grid;
       grid-template-rows: subgrid;
@@ -176,6 +180,17 @@
     .survey-dce-comparison > .survey-configuration > dl { display: contents; }
     .survey-dce-comparison > .survey-configuration > dl > div { margin-top: 0; }
   }
+}
+@media (max-width: 639px) {
+  .survey-dce-comparison { gap: 8px; margin-inline: -12px; }
+  .survey-dce-comparison > .survey-configuration { padding: 8px; }
+  .survey-dce-comparison .survey-level { padding: 10px; }
+  .survey-dce-comparison .survey-description { font-size: 1.125rem; line-height: 1.65; }
+  .survey-dce-comparison .survey-attribute-visual { display: none; }
+  .survey-dce-comparison .survey-difference-heading { margin: -2px -2px 8px; padding: 6px; }
+  .survey-dce-comparison .survey-difference-label { margin-left: 0; }
+  .survey-dce-comparison h3 { margin-bottom: 0; }
+  .survey-dce-comparison button { overflow-wrap: anywhere; }
 }
 
 /* 减少动态效果：不仅缩短时长，也关闭循环动画 */

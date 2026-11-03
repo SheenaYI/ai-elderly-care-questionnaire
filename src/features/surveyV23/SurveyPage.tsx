@@ -344,36 +344,41 @@ function SurveyPage({
             />
             {BACKGROUND[type].map((q) =>
               !elder && d.answers.b0 === 1 && q.id !== "b0" ? null : (
-                <ChoiceField
-                  key={q.id}
-                  id={q.id}
-                  text={q.text}
-                  options={q.options}
-                  value={d.answers[q.id]}
-                  onChange={(v) => answer(q.id, v)}
-                />
+                <div key={q.id}>
+                  <ChoiceField
+                    id={q.id}
+                    text={q.text}
+                    options={q.options}
+                    value={d.answers[q.id]}
+                    onChange={(v) => answer(q.id, v)}
+                  />
+                  {q.id === "b3" &&
+                    d.answers.b3 === 3 &&
+                    d.answers.b0 !== 1 && (
+                      <label className="block text-lg">
+                        偶尔帮忙（年）
+                        <input
+                          aria-label="照护年限"
+                          type="number"
+                          min={0}
+                          max={100}
+                          step="0.1"
+                          value={d.care_years ?? ""}
+                          onChange={(e) =>
+                            update({
+                              ...d,
+                              care_years:
+                                e.target.value === ""
+                                  ? null
+                                  : Number(e.target.value),
+                            })
+                          }
+                          className="ml-3 min-h-14 w-28 rounded-panel border border-sage-300 p-3"
+                        />
+                      </label>
+                    )}
+                </div>
               ),
-            )}
-            {!elder && d.answers.b3 === 3 && d.answers.b0 !== 1 && (
-              <label className="block text-lg">
-                偶尔帮忙（年）
-                <input
-                  aria-label="照护年限"
-                  type="number"
-                  min={0}
-                  max={100}
-                  step="0.1"
-                  value={d.care_years ?? ""}
-                  onChange={(e) =>
-                    update({
-                      ...d,
-                      care_years:
-                        e.target.value === "" ? null : Number(e.target.value),
-                    })
-                  }
-                  className="ml-3 min-h-14 w-28 rounded-panel border border-sage-300 p-3"
-                />
-              </label>
             )}
             {!elder && d.answers.b0 === 1 && (
               <p role="status" className="mt-5 text-lg leading-8">

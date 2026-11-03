@@ -142,6 +142,24 @@ function rateAndAllocate(type: "elder" | "caregiver") {
 }
 
 describe("V2.3 从入口到本地提交的完整交互", () => {
+  it("偶尔帮忙年限紧跟b3、位于b4之前，并保留必填校验", () => {
+    mount("caregiver");
+    radio("b0", 0);
+    radio("b3", 3);
+    const years = document.querySelector<HTMLInputElement>(
+      'input[aria-label="照护年限"]',
+    )!;
+    const b3 = document.querySelector('input[name="b3"]')!.closest("fieldset")!;
+    const b4 = document.querySelector('input[name="b4"]')!.closest("fieldset")!;
+    expect(b3.parentElement!.contains(years)).toBe(true);
+    expect(
+      years.compareDocumentPosition(b4) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    inputValue(years, "2.5");
+    expect(restoreSurvey("caregiver", "test")?.care_years).toBe(2.5);
+    radio("b3", 0);
+    expect(document.querySelector('input[aria-label="照护年限"]')).toBeNull();
+  });
   it.each(["elder", "caregiver"] as const)(
     "%s只显示对应的四条共同前提，不混入X3解释",
     (type) => {
